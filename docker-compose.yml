@@ -10,16 +10,16 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - DB_CLIENT=mssql
-      - DB_TABLE_PREFIX=CR_
-      - MSSQL_HOST=10.19.25.27
-      - MSSQL_PORT=1433
-      - MSSQL_USER=cr_app
-      - MSSQL_PASSWORD=PasswordKu4t!2026
-      - MSSQL_DATABASE=BMC
-      - MSSQL_ENCRYPT=false
-      - JWT_SECRET=abc123def456ghi789jkl012mno345pqr678stu901vwx234
-      - JWT_EXPIRES=8h
-      - PORT=3000
+      - DB_CLIENT=${DB_CLIENT:-mssql}
+      - DB_TABLE_PREFIX=${DB_TABLE_PREFIX:-CR_}
+      - MSSQL_HOST=${MSSQL_HOST}
+      - MSSQL_PORT=${MSSQL_PORT:-1433}
+      - MSSQL_USER=${MSSQL_USER}
+      - MSSQL_PASSWORD=${MSSQL_PASSWORD}
+      - MSSQL_DATABASE=${MSSQL_DATABASE}
+      - MSSQL_ENCRYPT=${MSSQL_ENCRYPT:-false}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES=${JWT_EXPIRES:-8h}
+      - PORT=${PORT:-3000}
     extra_hosts:
       - "host.docker.internal:host-gateway"
