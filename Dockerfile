@@ -1,30 +1,41 @@
+# Multi-stage Dockerfile for CR Monitor - Fixed for Angular 17+
+
 # Stage 1: Build Angular frontend
 FROM node:20-alpine AS frontend-build
 WORKDIR /app/frontend
 
-# Mencegah crash kehabisan RAM saat build Angular
-ENV NODE_OPTIONS="--max-old-space-size=2048"
+# Install build dependencies for native modules (esbuild, lmdb, msgpackr, etc.)
+RUN apk add --no-cache python3 make g++
 
-# 1. Optimasi cache Docker: Install dependency dulu
+# Increase Node.js memory limit for Angular build
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NG_CLI_ANALYTICS=false
+
+# Copy package files first for better layer caching
 COPY frontend/package*.json ./
 RUN npm ci
 
-# 2. Copy source code & jalankan build Angular
+# Copy source code and build
 COPY frontend/ ./
-ENV NG_CLI_ANALYTICS=false
-RUN npm run build -- --configuration production
+RUN npx ng build --configuration production
 
 # Stage 2: Production image with backend + built frontend
 FROM node:20-alpine
+
 WORKDIR /app/backend
 
+# Copy backend package files first for layer caching
 COPY backend/package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci --production
 
+# Copy backend source
 COPY backend/ ./
+
+# Remove test files that aren't needed
 RUN rm -f test-db.mjs verify.mjs test.csv test.xlsx
 
-# 3. KUNCI PERBAIKAN: Path menunjuk langsung ke dist/cr-dashboard/browser sesuai angular.json
+# Copy built frontend from frontend-build stage
+# Angular 17+ with @angular/build:application outputs to dist/<project-name>/browser
 COPY --from=frontend-build /app/frontend/dist/cr-dashboard/browser ./dist/
 
 EXPOSE 3000
