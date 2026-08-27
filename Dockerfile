@@ -6,7 +6,7 @@ WORKDIR /app
 COPY frontend/package*.json ./frontend/
 RUN cd frontend && npm ci
 COPY frontend/ ./frontend/
-RUN cd frontend && npm run build
+RUN cd frontend && npm run build --verbose
 
 # Stage 2: Production image with backend + built frontend
 FROM node:20-alpine
