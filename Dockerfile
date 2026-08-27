@@ -1,22 +1,32 @@
-# Simple Dockerfile - frontend already built and committed to git
+# Stage 1: Build Angular frontend
+FROM node:20-alpine AS frontend-build
+WORKDIR /app/frontend
 
+# Mencegah crash kehabisan RAM saat build Angular
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+
+# 1. Optimasi cache Docker: Install dependency dulu
+COPY frontend/package*.json ./
+RUN npm ci
+
+# 2. Copy source code & jalankan build Angular
+COPY frontend/ ./
+ENV NG_CLI_ANALYTICS=false
+RUN npm run build -- --configuration production
+
+# Stage 2: Production image with backend + built frontend
 FROM node:20-alpine
-
-WORKDIR /app
-
-# Copy backend files
-COPY backend/ ./backend/
-
-# Remove test files
-RUN rm -f backend/test-db.mjs backend/verify.mjs backend/test.csv backend/test.xlsx
-
-# Install production dependencies
 WORKDIR /app/backend
-RUN npm ci --production
 
-# Copy pre-built frontend (already built and committed to git)
-COPY frontend/dist ./dist
+COPY backend/package*.json ./
+RUN npm ci --omit=dev
+
+COPY backend/ ./
+RUN rm -f test-db.mjs verify.mjs test.csv test.xlsx
+
+# 3. KUNCI PERBAIKAN: Path menunjuk langsung ke dist/cr-dashboard/browser sesuai angular.json
+COPY --from=frontend-build /app/frontend/dist/cr-dashboard/browser ./dist/
 
 EXPOSE 3000
 
-CMD ["node", "backend/src/index.js"]
+CMD ["node", "src/index.js"]
