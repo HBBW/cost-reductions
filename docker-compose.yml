@@ -15,7 +15,7 @@ services:
       - MSSQL_HOST=10.19.25.27
       - MSSQL_PORT=1433
       - MSSQL_USER=sa
-      - MSSQL_PASSWORD=$ilver13oy
+      - MSSQL_PASSWORD=ka$ilver13oy
       - MSSQL_DATABASE=BMC
       - MSSQL_ENCRYPT=false
       - JWT_SECRET=abc123def456ghi789jkl012mno345pqr678stu901vwx234
