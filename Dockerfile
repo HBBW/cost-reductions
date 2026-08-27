@@ -1,21 +1,22 @@
-# Simple Dockerfile - frontend already built and committed
+# Simple Dockerfile - frontend already built and committed to git
 
 FROM node:20-alpine
 
-WORKDIR /app/backend
+WORKDIR /app
 
 # Copy backend files
-COPY backend/ ./
+COPY backend/ ./backend/
 
 # Remove test files
-RUN rm -f test-db.mjs verify.mjs test.csv test.xlsx
+RUN rm -f backend/test-db.mjs backend/verify.mjs backend/test.csv backend/test.xlsx
 
 # Install production dependencies
+WORKDIR /app/backend
 RUN npm ci --production
 
-# Copy pre-built frontend
-COPY frontend/dist ./dist/
+# Copy pre-built frontend (already built and committed to git)
+COPY frontend/dist ./dist
 
 EXPOSE 3000
 
-CMD ["node", "src/index.js"]
+CMD ["node", "backend/src/index.js"]

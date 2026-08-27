@@ -2,7 +2,6 @@
 node_modules/
 
 # Build output
-dist/
 frontend/.angular/
 backend/.angular/
 
@@ -37,3 +36,7 @@ a.txt
 # OS
 .DS_Store
 Thumbs.db
+
+
+# Root dist only (keep frontend/dist)
+/dist
