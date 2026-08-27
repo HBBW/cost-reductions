@@ -2,11 +2,10 @@
 
 # Stage 1: Build Angular frontend
 FROM node:20-alpine AS frontend-build
-WORKDIR /app/frontend
-COPY frontend/package*.json ./
-RUN npm ci
-COPY frontend/ ./
-RUN npm run build
+WORKDIR /app
+COPY frontend/ ./frontend/
+RUN cd frontend && npm ci
+RUN cd frontend && npx ng build --configuration production
 
 # Stage 2: Production image with backend + built frontend
 FROM node:20-alpine
@@ -15,6 +14,9 @@ WORKDIR /app/backend
 
 # Copy backend files
 COPY backend/ ./
+
+# Remove test files that aren't needed
+RUN rm -f test-db.mjs verify.mjs test.csv test.xlsx
 
 # Install production dependencies
 RUN npm ci --production
