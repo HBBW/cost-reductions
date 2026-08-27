@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for CR Monitor
+# Multi-stage Dockerfile for CR Monitor - Fixed for Angular 17+
 
 # Stage 1: Build Angular frontend
 FROM node:20-alpine AS frontend-build
@@ -15,11 +15,9 @@ ENV NG_CLI_ANALYTICS=false
 COPY frontend/package*.json ./
 RUN npm ci
 
-# Copy source code
+# Copy source code and build
 COPY frontend/ ./
-
-# Build Angular using node_modules/.bin/ng (not npx)
-RUN ./node_modules/.bin/ng build --configuration production
+RUN npx ng build --configuration production
 
 # Stage 2: Production image with backend + built frontend
 FROM node:20-alpine
@@ -37,6 +35,7 @@ COPY backend/ ./
 RUN rm -f test-db.mjs verify.mjs test.csv test.xlsx
 
 # Copy built frontend from frontend-build stage
+# Angular 17+ with @angular/build:application outputs to dist/<project-name>/browser
 COPY --from=frontend-build /app/frontend/dist/cr-dashboard/browser ./dist/
 
 EXPOSE 3000
