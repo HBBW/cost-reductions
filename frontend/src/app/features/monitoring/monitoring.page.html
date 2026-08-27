@@ -1,0 +1,68 @@
+<div class="space-y-7">
+  <app-page-header title="Monitoring Status Input" subtitle="Kelengkapan input tiap departemen per bulan — tanpa menagih manual satu per satu." />
+
+  <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+    <app-year-select [year]="year()" [years]="years()" (yearChange)="setYear($event)" />
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted">
+      <span class="flex items-center gap-1.5"><span class="inline-block h-3 w-3 rounded-[3px] bg-forest"></span> Lengkap</span>
+      <span class="flex items-center gap-1.5"><span class="inline-block h-3 w-3 rounded-[3px] border-2 border-rust bg-surface"></span> Bolong</span>
+      <span class="flex items-center gap-1.5"><span class="inline-block h-3 w-3 rounded-[3px] border border-dashed border-ochre bg-ochre-tint"></span> Berjalan</span>
+      <span class="flex items-center gap-1.5"><span class="inline-block h-3 w-3 rounded-[3px] border border-hairline bg-transparent"></span> Belum mulai</span>
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="rounded-md bg-rust-tint px-3 py-2 text-sm text-rust">{{ error() }}</p>
+  }
+
+  <section class="fade-up">
+    <div class="mb-4">
+      <h2 class="font-display text-base font-semibold tracking-tight text-ink">Matriks Kelengkapan {{ year() }}</h2>
+      <p class="mt-0.5 text-xs text-muted">Arahkan kursor ke sel untuk melihat idea yang belum diisi</p>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead>
+          <tr class="border-y border-hairline text-left">
+            <th class="mlabel sticky left-0 z-10 bg-paper px-3 py-2.5 pl-0 font-medium">Departemen</th>
+            <th class="mlabel px-2 py-2.5 text-center font-medium">Idea</th>
+            <th class="mlabel px-2 py-2.5 text-center font-medium" [title]="targetColTitle()">Target</th>
+            @for (m of monthLabels; track m) {
+              <th class="mlabel px-1.5 py-2.5 text-center font-medium">{{ m }}</th>
+            }
+            <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Lengkap</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (d of data()?.departments; track d.departmentId) {
+            <tr class="border-b border-hairline transition-colors hover:bg-surface/60">
+              <td class="sticky left-0 z-10 whitespace-nowrap bg-paper py-3 pr-4 pl-0 font-medium text-ink">{{ d.departmentName }}</td>
+              <td class="tnum px-2 py-3 text-center text-muted">{{ d.ideasCount }}</td>
+              <td class="px-2 py-3 text-center" [title]="d.targetEntered ? 'Target 12 bulan sudah diisi' : 'Target tahunan belum lengkap'">
+                @if (d.targetEntered) {
+                  <svg class="mx-auto h-4 w-4 text-forest" fill="none" viewBox="0 0 24 24" stroke-width="2.25" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                } @else {
+                  <svg class="mx-auto h-4 w-4 text-faint" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18 12H6"/></svg>
+                }
+              </td>
+              @for (cell of d.months; track cell.month) {
+                <td class="px-1.5 py-2.5 text-center">
+                  <span
+                    class="mx-auto block h-5 w-8 cursor-help rounded-[4px] {{ markerClass(cell.status) }}"
+                    [title]="cellTitle(d, cell)">
+                  </span>
+                </td>
+              }
+              <td class="tnum table-cell-num px-3 py-3 text-muted">{{ filledCount(d) }}/{{ totalCells(d) }}</td>
+            </tr>
+          } @empty {
+            <tr><td colspan="17" class="py-10 text-center">
+              <span class="inline-block h-4 w-52 skeleton"></span>
+            </td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>

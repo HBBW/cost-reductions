@@ -1,0 +1,49 @@
+<div class="flex min-h-dvh flex-col bg-paper">
+  <!-- Top navigation -->
+  <header class="sticky top-0 z-30 border-b border-hairline bg-paper/90 backdrop-blur-sm">
+    <div class="mx-auto flex h-14 max-w-[1240px] items-center gap-8 px-6">
+      <a routerLink="/dashboard" class="flex shrink-0 items-baseline gap-2">
+        <span class="font-display text-lg font-semibold tracking-tight text-ink">CR<span class="text-forest">·</span>Monitor</span>
+        <span class="hidden text-[10px] font-semibold tracking-[0.14em] text-faint uppercase sm:inline">Cost Reduction</span>
+      </a>
+
+      <nav class="-mx-1 flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto px-1" aria-label="Navigasi utama">
+        @for (item of visibleItems(); track item.path) {
+          <a
+            [routerLink]="item.path"
+            routerLinkActive="!text-ink after:scale-x-100"
+            #rla="routerLinkActive"
+            class="relative shrink-0 rounded-md px-3 py-1.5 text-sm transition-colors after:absolute after:inset-x-3 after:-bottom-[13px] after:h-0.5 after:origin-left after:scale-x-0 after:bg-forest after:transition-transform after:duration-200"
+            [class.text-muted]="!rla.isActive"
+            [class.hover:text-ink]="!rla.isActive"
+            [class.font-semibold]="rla.isActive">
+            {{ item.label }}
+          </a>
+        }
+      </nav>
+
+      <div class="flex shrink-0 items-center gap-3">
+        <div class="text-right leading-tight">
+          <p class="max-w-[160px] truncate text-sm font-medium text-ink">{{ auth.user()?.name }}</p>
+          <p class="mlabel !text-[9.5px]">{{ roleLabel() }}</p>
+        </div>
+        <button
+          (click)="auth.logout()"
+          class="btn btn-secondary h-8.5 !px-2.5"
+          title="Keluar">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto w-full max-w-[1240px] flex-1 px-6 py-8">
+    <router-outlet />
+  </main>
+
+  <footer class="border-t border-hairline">
+    <div class="mx-auto max-w-[1240px] px-6 py-4">
+      <p class="text-xs text-faint">CR Monitor · Actual CR dihitung otomatis oleh sistem (Budget − Actual Biaya)</p>
+    </div>
+  </footer>
+</div>

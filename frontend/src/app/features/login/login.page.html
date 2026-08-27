@@ -1,0 +1,67 @@
+<div class="grid min-h-dvh lg:grid-cols-[46%_54%]">
+  <!-- Panel brand -->
+  <aside class="relative hidden flex-col justify-between overflow-hidden bg-forest-deep p-12 lg:flex">
+    <div class="pointer-events-none absolute inset-0 opacity-[0.07]" aria-hidden="true"
+         style="background-image: url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E&quot;)"></div>
+
+    <div class="flex items-baseline gap-2">
+      <span class="font-display text-xl font-semibold tracking-tight text-paper">CR<span class="text-paper/50">·</span>Monitor</span>
+    </div>
+
+    <div class="fade-up">
+      <p class="font-display text-[44px] leading-[1.15] font-medium tracking-tight text-paper">
+        Setiap rupiah penghematan,<br/>
+        <em class="text-ochre-tint/90 not-italic">tercatat rapi.</em>
+      </p>
+      <p class="mt-5 max-w-sm text-sm leading-relaxed text-paper/60">
+        Actual CR dihitung otomatis dari Budget dan Actual Biaya — tanpa rumus Excel
+        yang bisa hilang atau berubah, dengan status input tiap departemen terlihat real-time.
+      </p>
+    </div>
+
+    <div class="flex items-center gap-6 text-paper/40">
+      <span class="mlabel !text-paper/40">Dashboard Internal</span>
+      <span class="h-px w-10 bg-paper/20"></span>
+      <span class="mlabel !text-paper/40">Cost Reduction</span>
+    </div>
+  </aside>
+
+  <!-- Form -->
+  <main class="flex items-center justify-center px-6 py-16">
+    <div class="w-full max-w-sm fade-up d1">
+      <!-- Brand ringkas utk mobile -->
+      <div class="mb-8 flex items-center gap-2 lg:hidden">
+        <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-forest font-display text-sm font-bold text-paper">CR</div>
+        <span class="font-display text-lg font-semibold tracking-tight">CR·Monitor</span>
+      </div>
+
+      <p class="mlabel mb-2">Selamat datang kembali</p>
+      <h1 class="font-display text-3xl font-semibold tracking-tight text-ink">Masuk</h1>
+
+      <form (submit)="submit($event)" class="mt-8 space-y-4">
+        <div>
+          <label for="username" class="mb-1.5 block text-sm font-medium text-ink-soft">Username</label>
+          <input id="username" type="text" autocomplete="username" required class="input-base"
+                 [value]="username()" (input)="username.set($any($event.target).value)" placeholder="mis. produksi"/>
+        </div>
+        <div>
+          <label for="password" class="mb-1.5 block text-sm font-medium text-ink-soft">Password</label>
+          <input id="password" type="password" autocomplete="current-password" required class="input-base"
+                 [value]="password()" (input)="password.set($any($event.target).value)" placeholder="••••••••"/>
+        </div>
+
+        @if (error()) {
+          <p class="rounded-md bg-rust-tint px-3 py-2 text-sm text-rust">{{ error() }}</p>
+        }
+
+        <button type="submit" class="btn btn-primary w-full !py-2.5" [disabled]="loading()">
+          @if (loading()) { Memproses… } @else { Masuk → }
+        </button>
+      </form>
+
+      <p class="mt-10 border-t border-hairline pt-4 text-xs leading-relaxed text-faint">
+        Lupa akun atau perlu akses departemen lain? Hubungi MR.
+      </p>
+    </div>
+  </main>
+</div>

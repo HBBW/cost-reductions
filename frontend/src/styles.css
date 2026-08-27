@@ -1,0 +1,265 @@
+@import "@fontsource-variable/fraunces";
+@import "@fontsource-variable/public-sans";
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #F7F5F0;
+  --color-surface: #FFFFFF;
+  --color-ink: #1C1917;
+  --color-ink-soft: #44403C;
+  --color-muted: #78716C;
+  --color-faint: #A8A29E;
+  --color-hairline: #E7E2D9;
+  --color-forest: #175E4C;
+  --color-forest-deep: #0E3E31;
+  --color-forest-tint: #E9F1ED;
+  --color-ochre: #A16207;
+  --color-ochre-tint: #F6EBD5;
+  --color-rust: #B42318;
+  --color-rust-tint: #FBEEEC;
+
+  --font-display: "Fraunces Variable", Georgia, "Times New Roman", serif;
+  --font-sans: "Public Sans Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Tekstur grain halus di atas seluruh halaman */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+::selection {
+  background: var(--color-forest);
+  color: var(--color-paper);
+}
+
+/* ---------- Tipografi utilitas ---------- */
+.font-display {
+  font-family: var(--font-display);
+}
+
+.mlabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+.rule-double {
+  border-top: 3px double var(--color-ink);
+}
+
+/* ---------- Skeleton ---------- */
+.skeleton {
+  border-radius: 6px;
+  background: linear-gradient(90deg, #ece8df 25%, #f4f1ea 50%, #ece8df 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* ---------- Motion ---------- */
+.fade-up {
+  animation: fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.d1 { animation-delay: 0.05s; }
+.d2 { animation-delay: 0.11s; }
+.d3 { animation-delay: 0.17s; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------- Sembunyikan spinner input number ---------- */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #d6d0c4 transparent;
+}
+
+/* ---------- Kelas komponen bersama ---------- */
+@layer components {
+  .select-base {
+    display: block;
+    border-radius: 6px;
+    border: 1px solid var(--color-hairline);
+    background-color: var(--color-surface);
+    padding: 0.4rem 0.625rem;
+    font-size: 0.875rem;
+    color: var(--color-ink);
+    outline: none;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+  .select-base:focus {
+    border-color: var(--color-forest);
+    box-shadow: 0 0 0 3px rgba(23, 94, 76, 0.12);
+  }
+
+  .input-base {
+    display: block;
+    width: 100%;
+    border-radius: 6px;
+    border: 1px solid var(--color-hairline);
+    background-color: var(--color-surface);
+    padding: 0.4rem 0.625rem;
+    font-size: 0.875rem;
+    color: var(--color-ink);
+    outline: none;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+  .input-base:focus {
+    border-color: var(--color-ink);
+    box-shadow: 0 0 0 3px rgba(28, 25, 23, 0.1);
+  }
+  .input-base:disabled {
+    background-color: var(--color-paper);
+    color: var(--color-faint);
+    cursor: not-allowed;
+  }
+
+  /* Sel entry grid — fokus tinta agar jelas saat mengetik */
+  .cell-input {
+    display: block;
+    width: 100%;
+    min-width: 108px;
+    height: 38px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background-color: var(--color-surface);
+    padding: 0 0.5rem;
+    font-size: 0.875rem;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-ink);
+    outline: none;
+    transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+  }
+  .cell-input:hover:not(:focus):not(:disabled) {
+    border-color: var(--color-hairline);
+  }
+  .cell-input:focus {
+    border-color: var(--color-ink);
+    box-shadow: 0 0 0 3px rgba(28, 25, 23, 0.12);
+  }
+  .cell-input:disabled {
+    background-color: var(--color-paper);
+    color: var(--color-faint);
+    cursor: not-allowed;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    border-radius: 6px;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.25rem;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 140ms ease, border-color 140ms ease,
+      color 140ms ease, transform 100ms ease;
+  }
+  .btn:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  .btn:focus-visible {
+    outline: 2px solid var(--color-forest);
+    outline-offset: 2px;
+  }
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  /* Aksi umum: tinta pekat */
+  .btn-primary {
+    background-color: var(--color-ink);
+    color: var(--color-paper);
+    border: 1px solid transparent;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-color: #000;
+  }
+
+  /* Aksi penyimpanan: hijau hutan (positif) */
+  .btn-accent {
+    background-color: var(--color-forest);
+    color: #fff;
+    border: 1px solid transparent;
+  }
+  .btn-accent:hover:not(:disabled) {
+    background-color: var(--color-forest-deep);
+  }
+
+  .btn-secondary {
+    background-color: var(--color-surface);
+    color: var(--color-ink-soft);
+    border: 1px solid var(--color-hairline);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    border-color: #cfc7b8;
+    color: var(--color-ink);
+  }
+
+  .btn-danger {
+    background-color: transparent;
+    color: var(--color-rust);
+    border: 1px solid rgba(180, 35, 24, 0.25);
+  }
+  .btn-danger:hover:not(:disabled) {
+    background-color: var(--color-rust-tint);
+  }
+
+  .table-cell-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+}

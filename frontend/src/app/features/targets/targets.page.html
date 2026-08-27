@@ -1,0 +1,100 @@
+<div class="space-y-7">
+  <app-page-header title="Target Tahunan" subtitle="Isi Budget & Potential CR per idea. Terkunci setelah 18 Februari." />
+
+  <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
+    <app-year-select [year]="year()" [years]="years()" (yearChange)="setYear($event)" />
+    @if (isMR) {
+      <label class="flex items-center gap-2 text-sm text-muted">
+        Departemen
+        <select class="select-base w-52" [value]="selectedDeptId() ?? ''" (change)="setDept($any($event.target).value)">
+          <option value="" disabled>Pilih departemen</option>
+          @for (d of departments(); track d.id) { <option [value]="d.id">{{ d.name }}</option> }
+        </select>
+      </label>
+    }
+    @if (!isMR && deptName()) {
+      <span class="mlabel">{{ deptName() }}</span>
+    }
+  </div>
+
+  @if (error()) {
+    <p class="rounded-md bg-rust-tint px-3 py-2 text-sm text-rust">{{ error() }}</p>
+  }
+
+  <!-- Tabel target per idea (inline edit) -->
+  <section>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead>
+          <tr class="border-y border-hairline text-left">
+            <th class="mlabel px-3 py-2.5 pl-0 font-medium">Nama Idea</th>
+            <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Budget/Tahun</th>
+            <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Potential CR/Tahun</th>
+            <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Actual CR</th>
+            <th class="mlabel px-3 py-2.5 font-medium text-center">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (idea of ideas(); track idea.id; let i = $index) {
+            <tr class="border-b border-hairline transition-colors hover:bg-surface/70">
+              <td class="max-w-xs truncate px-3 py-2.5 pl-0 font-medium text-ink" [title]="idea.name">{{ idea.name }}</td>
+              <td class="relative px-3 py-2.5">
+                @if (isDirtyBudget(i)) { <span class="absolute top-1/2 -left-0.5 -translate-y-1/2 h-5 w-[3px] rounded-full bg-amber-500"></span> }
+                <input type="text" inputmode="decimal" autocomplete="off" class="cell-input"
+                       [value]="idea.budget ? rupiahFmt.format(idea.budget) : ''"
+                       (input)="onBudget(i, $event)" />
+              </td>
+              <td class="relative px-3 py-2.5">
+                @if (isDirtyPotential(i)) { <span class="absolute top-1/2 -left-0.5 -translate-y-1/2 h-5 w-[3px] rounded-full bg-amber-500"></span> }
+                <input type="text" inputmode="decimal" autocomplete="off" class="cell-input"
+                       [value]="idea.potentialCr ? rupiahFmt.format(idea.potentialCr) : ''"
+                       (input)="onPotentialCr(i, $event)" />
+              </td>
+              <td class="table-cell-num px-3 py-2.5 font-semibold"
+                  [class.text-forest]="actualCr(idea) >= 0"
+                  [class.text-rust]="actualCr(idea) < 0">{{ fmt(actualCr(idea)) }}</td>
+              <td class="px-3 py-2.5 text-center">
+                @if (idea.budget > 0 && idea.potentialCr > 0 && idea.actual > 0) {
+                  <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] bg-forest-tint text-forest">
+                    <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+                    Terisi
+                  </span>
+                } @else if (idea.budget === 0 && idea.potentialCr === 0) {
+                  <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] bg-stone-100 text-stone-600">
+                    <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+                    Belum diisi
+                  </span>
+                } @else {
+                  <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] bg-ochre-tint text-ochre">
+                    <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+                    Sebagian
+                  </span>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5" class="py-10 text-center text-sm text-faint">
+                @if (loading()) { <span class="inline-block h-4 w-40 skeleton"></span> }
+                @else { Belum ada idea pada tahun {{ year() }}. }
+              </td>
+            </tr>
+          }
+        </tbody>
+        @if (ideas().length > 0) {
+          <tfoot>
+            <tr class="rule-double font-semibold text-ink">
+              <td class="py-3 pr-3 pl-0">Total</td>
+              <td class="table-cell-num px-3 py-3">{{ fmt(totalBudget()) }}</td>
+              <td class="table-cell-num px-3 py-3">{{ fmt(totalPotential()) }}</td>
+              <td class="table-cell-num px-3 py-3 text-forest">{{ fmt(totalActual()) }}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        }
+      </table>
+    </div>
+  </section>
+
+  <app-save-bar [count]="dirtyCount()" [saving]="saving()" (save)="saveAll()" (cancel)="revertRows()" />
+</div>

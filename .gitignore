@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+frontend/dist/
+frontend/.angular/
+backend/.angular/
+
+# Environment
+.env
+backend/.env
+backend/.env.production
+
+# Logs
+*.log
+server.log
+build.log
+
+# Temp files
+cookies.txt
+*.txt
+!DEPLOY.md
+!README.md
+
+# Test files
+test.*
+output.txt
+debug-input.png
+nul
+
+# Debug
+c.txt
+m.txt
+u.txt
+a.txt
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,113 @@
+<div class="space-y-7">
+  <app-page-header title="Detail Idea CR" subtitle="Rincian tiap idea per departemen beserta data bulanannya." />
+
+  <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
+    <app-year-select [year]="year()" [years]="years()" (yearChange)="setYear($event)" />
+    @if (!isUser) {
+      <label class="flex items-center gap-2 text-sm text-muted">
+        Departemen
+        <select class="select-base w-56" [value]="deptId()" (change)="setDept($any($event.target).value)">
+          <option value="">Semua Departemen</option>
+          @for (d of departments(); track d.id) { <option [value]="d.id">{{ d.name }}</option> }
+        </select>
+      </label>
+    }
+  </div>
+
+  @if (error()) {
+    <p class="rounded-md bg-rust-tint px-3 py-2 text-sm text-rust">{{ error() }}</p>
+  }
+
+  @for (group of grouped(); track group.dept) {
+    <section class="fade-up">
+      <div class="mb-1 flex items-baseline justify-between border-b border-hairline pb-2">
+        <h2 class="font-display text-base font-semibold tracking-tight text-ink">{{ group.dept }}</h2>
+        <span class="mlabel">{{ group.ideas.length }} idea</span>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead>
+            <tr class="text-left">
+              <th class="w-8 px-2 py-2.5"></th>
+              <th class="mlabel px-2 py-2.5 font-medium">Nama Idea</th>
+              <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Potential/Thn</th>
+              <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Actual/Thn</th>
+              <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Sisa</th>
+              <th class="mlabel px-4 py-2.5 font-medium">Remark</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (idea of group.ideas; track $index) {
+              <tr class="cursor-pointer border-b border-hairline transition-colors hover:bg-surface/70"
+                  (click)="toggleExpanded(idea)">
+                <td class="px-2 py-2.5 text-center">
+                  <svg class="mx-auto h-3.5 w-3.5 text-faint transition-transform duration-200 {{ expanded().has(keyOf(idea)) ? 'rotate-90' : '' }}"
+                       fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+                </td>
+                <td class="max-w-xs truncate px-2 py-2.5 font-medium text-ink" [title]="idea.name">{{ idea.name }}</td>
+                <td class="table-cell-num px-3 py-2.5 text-ink-soft">{{ fmt(idea.potentialCr) }}</td>
+                <td class="table-cell-num px-3 py-2.5 font-semibold"
+                    [class.text-forest]="idea.actual >= 0"
+                    [class.text-rust]="idea.actual < 0">{{ fmt(idea.actual) }}</td>
+                <td class="table-cell-num px-3 py-2.5"
+                    [class.text-rust]="(idea.potentialCr - idea.actual) < 0"
+                    [class.text-forest]="(idea.potentialCr - idea.actual) >= 0">{{ fmt(idea.potentialCr - idea.actual) }}</td>
+                <td class="max-w-[16rem] truncate px-4 py-2.5 text-muted" [title]="idea.remark || ''">{{ idea.remark || '—' }}</td>
+              </tr>
+
+              <!-- Rincian bulanan -->
+              @if (expanded().has(keyOf(idea))) {
+                <tr class="border-b border-hairline bg-surface/50">
+                  <td></td>
+                  <td colspan="5" class="py-4 pr-6">
+                    <div class="ml-2 border-l-2 border-hairline pl-5">
+                      @if (idea.months.length === 0) {
+                        <p class="text-xs text-faint">Belum ada data bulanan.</p>
+                      } @else {
+                        <p class="mlabel mb-2">Rincian 12 Bulan</p>
+                        <table class="min-w-full text-xs">
+                          <thead>
+                            <tr class="text-left">
+                              <th class="py-1 pr-4 font-medium text-muted">Bulan</th>
+                              <th class="px-3 py-1 text-right font-medium text-muted">Potential CR</th>
+                              <th class="px-3 py-1 text-right font-medium text-muted">Budget</th>
+                              <th class="px-3 py-1 text-right font-medium text-muted">Actual Biaya</th>
+                              <th class="px-3 py-1 text-right font-medium text-muted">Actual CR</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            @for (m of idea.months; track m.month; let last = $last) {
+                              <tr class="{{ last ? 'rule-double font-semibold' : '' }}">
+                                <td class="py-1 pr-4 whitespace-nowrap text-ink-soft">{{ monthName(m.month) }}</td>
+                                <td class="tnum px-3 py-1 text-right text-muted">{{ fmt(m.potential) }}</td>
+                                <td class="tnum px-3 py-1 text-right text-muted">{{ fmt(m.budget) }}</td>
+                                <td class="tnum px-3 py-1 text-right text-muted">{{ fmt(m.actualCost) }}</td>
+                                <td class="tnum table-cell-num px-3 py-1 font-semibold"
+                                    [class.text-forest]="m.actualCr >= 0"
+                                    [class.text-rust]="m.actualCr < 0">{{ fmt(m.actualCr) }}</td>
+                              </tr>
+                            }
+                          </tbody>
+                        </table>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            } @empty {
+              <tr><td colspan="6" class="py-8 text-center text-sm text-faint">Tidak ada idea pada filter ini.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  } @empty {
+    @if (!loading()) {
+      <div class="rounded-xl border border-dashed border-hairline bg-surface/50 px-6 py-14 text-center">
+        <p class="font-display text-base text-muted">Tidak ada data untuk tahun {{ year() }}.</p>
+        <p class="mt-1 text-xs text-faint">Coba pilih tahun lain dari selector di atas.</p>
+      </div>
+    }
+  }
+</div>

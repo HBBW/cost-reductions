@@ -1,0 +1,137 @@
+<div class="space-y-8">
+  <app-page-header title="Dashboard" [subtitle]="subtitleText()" />
+
+  <div class="flex flex-wrap items-center gap-3">
+    <app-year-select [year]="year()" [years]="years()" (yearChange)="loadYear($event)" />
+    @if (auth.user()?.role === 'USER') {
+      <span class="text-xs text-faint">Menampilkan departemen Anda sendiri</span>
+    }
+  </div>
+
+  <!-- Stat strip -->
+  <section class="fade-up grid grid-cols-1 border-y border-hairline sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
+    <!-- Hero: Actual CR YTD -->
+    <div class="border-b border-hairline px-2 py-6 sm:border-r lg:border-b-0 sm:px-6">
+      @if (data(); as d) {
+        <p class="mlabel">Actual CR YTD {{ year() }}</p>
+        <p class="tnum mt-3 font-display text-[44px] leading-none font-semibold tracking-tight text-forest">
+          {{ fmtMoney(d.totals.actual) }}
+        </p>
+        <p class="mt-3 text-xs text-muted">{{ d.totals.ideasCount }} idea · {{ d.departments.length }} departemen</p>
+      } @else {
+        <div class="skeleton h-3 w-28"></div>
+        <div class="skeleton mt-4 h-11 w-56"></div>
+      }
+    </div>
+
+    <!-- Potential CR YTD -->
+    <div class="flex flex-col justify-center border-b border-hairline px-6 py-5 lg:border-b-0 lg:border-r">
+      @if (data(); as d) {
+        <p class="mlabel">Potential CR YTD</p>
+        <p class="tnum font-display mt-2 text-2xl font-semibold tracking-tight text-ink">{{ fmtMoney(d.totals.potential) }}</p>
+        <p class="mt-1 text-xs text-faint">sum potential per idea</p>
+      } @else { <div class="skeleton h-14"></div> }
+    </div>
+
+    <!-- Actual Cost YTD -->
+    <div class="flex flex-col justify-center border-b border-hairline px-6 py-5 lg:border-b-0 lg:border-r">
+      @if (data(); as d) {
+        <p class="mlabel">Actual Cost YTD</p>
+        <p class="tnum font-display mt-2 text-2xl font-semibold tracking-tight text-ink">{{ fmtMoney(d.totals.actualCost) }}</p>
+        <p class="mt-1 text-xs text-faint">total actual biaya</p>
+      } @else { <div class="skeleton h-14"></div> }
+    </div>
+
+    <!-- Sisa Potential -->
+    <div class="flex flex-col justify-center px-6 py-5">
+      @if (data(); as d) {
+        <p class="mlabel">Sisa Potential</p>
+        <p class="tnum font-display mt-2 text-2xl font-semibold tracking-tight"
+           [class.text-forest]="d.totals.remaining >= 0"
+           [class.text-rust]="d.totals.remaining < 0">{{ fmtMoney(d.totals.remaining) }}</p>
+        <p class="mt-1 text-xs text-faint">{{ d.totals.remaining >= 0 ? 'tercapai' : 'belum tercapai' }}</p>
+      } @else { <div class="skeleton h-14"></div> }
+    </div>
+  </section>
+
+  <!-- Tren bulanan -->
+  <section class="fade-up d1 rounded-xl border border-hairline bg-surface shadow-sm shadow-stone-300/30">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-hairline px-6 py-4">
+      <div>
+        <h2 class="font-display text-base font-semibold tracking-tight text-ink">Tren Cost Reduction {{ year() }}</h2>
+        <p class="mt-0.5 text-xs text-muted">Actual Cost per bulan & kumulatif YTD</p>
+      </div>
+      <div class="flex items-center gap-4 text-xs text-muted">
+        <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-[#D8D2C6]"></span> Target</span>
+        <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-forest"></span> Actual</span>
+        <span class="flex items-center gap-1.5"><span class="h-0.5 w-4 rounded bg-ochre"></span> Kumulatif</span>
+      </div>
+    </div>
+    <div class="p-6">
+      @if (trend(); as t) {
+        <app-trend-chart [months]="t.months" />
+      } @else {
+        <div class="flex h-80 items-center justify-center">
+          <div class="skeleton h-full w-full rounded-lg"></div>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- Rekap departemen -->
+  <section class="fade-up d2">
+    <h2 class="mb-4 font-display text-base font-semibold tracking-tight text-ink">Rekap per Departemen</h2>
+
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead>
+          <tr class="border-y border-hairline text-left">
+            <th class="mlabel px-3 py-2.5 font-medium first:pl-0">Departemen</th>
+            <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Idea</th>
+            <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Budget</th>
+            <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Potential</th>
+            <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Actual Cost</th>
+            <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Actual CR</th>
+            <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Sisa</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (d of data()?.departments; track d.departmentId) {
+            <tr class="border-b border-hairline transition-colors hover:bg-surface/70">
+              <td class="px-3 py-2.5 pl-0 font-medium text-ink">{{ d.departmentName }}</td>
+              <td class="table-cell-num px-3 py-2.5 text-muted">{{ d.ideasCount }}</td>
+              <td class="table-cell-num px-3 py-2.5 text-muted">{{ fmtMoney(d.budget) }}</td>
+              <td class="table-cell-num px-3 py-2.5 text-ink-soft">{{ fmtMoney(d.potential) }}</td>
+              <td class="table-cell-num px-3 py-2.5 text-muted">{{ fmtMoney(d.actualCost) }}</td>
+              <td class="table-cell-num px-3 py-2.5 font-semibold text-forest">{{ fmtMoney(d.actual) }}</td>
+              <td class="table-cell-num px-3 py-2.5"
+                  [class.text-forest]="d.remaining >= 0"
+                  [class.text-rust]="d.remaining < 0">{{ fmtMoney(d.remaining) }}</td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="7" class="py-10 text-center text-sm text-faint">
+                @if (data()) { Belum ada idea pada tahun {{ year() }}. } @else { Memuat data… }
+              </td>
+            </tr>
+          }
+        </tbody>
+        @if (data()?.departments?.length) {
+          <tfoot>
+            <tr class="rule-double font-semibold text-ink">
+              <td class="py-3 pr-3 pl-0">Total</td>
+              <td class="table-cell-num px-3 py-3">{{ data()!.totals.ideasCount }}</td>
+              <td class="table-cell-num px-3 py-3">{{ fmtMoney(data()!.totals.budget) }}</td>
+              <td class="table-cell-num px-3 py-3">{{ fmtMoney(data()!.totals.potential) }}</td>
+              <td class="table-cell-num px-3 py-3">{{ fmtMoney(data()!.totals.actualCost) }}</td>
+              <td class="table-cell-num px-3 py-3 text-forest">{{ fmtMoney(data()!.totals.actual) }}</td>
+              <td class="table-cell-num px-3 py-3"
+                  [class.text-forest]="data()!.totals.remaining >= 0"
+                  [class.text-rust]="data()!.totals.remaining < 0">{{ fmtMoney(data()!.totals.remaining) }}</td>
+            </tr>
+          </tfoot>
+        }
+      </table>
+    </div>
+  </section>
+</div>

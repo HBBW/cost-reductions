@@ -1,0 +1,23 @@
+{
+  "name": "cr-backend",
+  "version": "1.0.0",
+  "description": "API Cost Reduction Monitoring",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "seed": "node scripts/seed.js",
+    "seed:sample": "node scripts/seed-sample.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.2.1",
+    "exceljs": "^4.4.0",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mssql": "^11.0.1",
+    "mysql2": "^3.14.3"
+  }
+}

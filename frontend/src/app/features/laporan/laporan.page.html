@@ -1,0 +1,63 @@
+<div class="space-y-7">
+  <app-page-header title="Laporan" subtitle="Unduh laporan Cost Reduction untuk dokumentasi / audit." />
+
+  <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
+    <app-year-select [year]="year()" [years]="years()" (yearChange)="setYear($event)" />
+    <label class="flex items-center gap-2 text-sm text-muted">
+      Departemen
+      <select class="select-base w-56" [value]="deptId()" (change)="setDept($any($event.target).value)">
+        <option value="">Semua Departemen</option>
+        @for (d of departments(); track d.id) { <option [value]="d.id">{{ d.name }}</option> }
+      </select>
+    </label>
+    @if (!loading && count() > 0) {
+      <span class="mlabel">{{ count() }} idea dalam filter ini</span>
+    }
+  </div>
+
+  <!-- Daftar laporan -->
+  <section class="fade-up border-y border-hairline">
+    <!-- Excel -->
+    <div class="flex flex-col gap-4 py-6 sm:flex-row sm:items-center">
+      <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-forest-tint text-forest">
+        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.651.154-1.302.317-1.947.477-.795.197-1.35.903-1.35 1.72v13.28a1.5 1.5 0 001.5 1.5h8.25a1.5 1.5 0 001.5-1.5v-13.28c0-.817-.555-1.523-1.35-1.72-.645-.16-1.296-.322-1.946-.476z"/></svg>
+      </div>
+      <div class="min-w-0 grow">
+        <h2 class="text-sm font-semibold text-ink">Excel (.xlsx)</h2>
+        <p class="mt-0.5 text-xs leading-relaxed text-muted">
+          Sheet <strong>Detail Idea</strong> — rincian per bulan (Potential, Budget, Actual Biaya, Actual CR) ·
+          sheet <strong>Rekap Idea</strong> — Potential/Actual per tahun beserta sisa
+        </p>
+      </div>
+      <a class="btn btn-primary shrink-0" [href]="exportUrl('excel')" target="_blank" rel="noopener">
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+        Download
+      </a>
+    </div>
+
+    <div class="border-t border-hairline"></div>
+
+    <!-- CSV -->
+    <div class="flex flex-col gap-4 py-6 sm:flex-row sm:items-center">
+      <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-stone-600">
+        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z"/></svg>
+      </div>
+      <div class="min-w-0 grow">
+        <h2 class="text-sm font-semibold text-ink">CSV</h2>
+        <p class="mt-0.5 text-xs leading-relaxed text-muted">
+          Satu baris per idea per bulan — dipisah titik-koma (;), siap diimpor ke sistem lain atau diolah kembali
+        </p>
+      </div>
+      <a class="btn btn-secondary shrink-0" [href]="exportUrl('csv')" target="_blank" rel="noopener">
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+        Download
+      </a>
+    </div>
+  </section>
+
+  @if (!loading && !hasData()) {
+    <div class="rounded-xl border border-dashed border-hairline bg-surface/50 px-6 py-14 text-center">
+      <p class="font-display text-base text-muted">Tidak ada data pada filter ini.</p>
+    </div>
+  }
+</div>
