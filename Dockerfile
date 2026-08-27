@@ -19,4 +19,5 @@ COPY frontend/dist ./dist
 
 EXPOSE 3000
 
-CMD ["node", "backend/src/index.js"]
+# WORKDIR already /app/backend, so use relative path
+CMD ["node", "src/index.js"]
