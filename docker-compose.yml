@@ -9,17 +9,7 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
-    environment:
-      - DB_CLIENT=mssql
-      - DB_TABLE_PREFIX=CR_
-      - MSSQL_HOST=10.19.25.27
-      - MSSQL_PORT=1433
-      - MSSQL_USER=cr_app
-      - MSSQL_PASSWORD=PasswordKu4t!2026
-      - MSSQL_DATABASE=BMC
-      - MSSQL_ENCRYPT=false
-      - JWT_SECRET=abc123def456ghi789jkl012mno345pqr678stu901vwx234
-      - JWT_EXPIRES=8h
-      - PORT=3000
+    env_file:
+      - .env
     extra_hosts:
       - "host.docker.internal:host-gateway"
