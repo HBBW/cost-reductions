@@ -29,7 +29,11 @@ app.use('/api', reportRoutes);
 app.use('/api', notFound);
 
 /* Serve build Angular (produksi intranet: satu proses, satu port) */
-const distDir = path.resolve(__dirname, '../../frontend/dist/cr-dashboard/browser');
+// Check both Docker location (/app/dist) and local dev (../../frontend/dist/cr-dashboard/browser)
+const distDirDocker = path.resolve(__dirname, '../../../dist');
+const distDirLocal = path.resolve(__dirname, '../../frontend/dist/cr-dashboard/browser');
+const distDir = fs.existsSync(distDirDocker) ? distDirDocker : distDirLocal;
+
 if (fs.existsSync(distDir)) {
   app.use(express.static(distDir));
   app.use((req, res, next) => {
