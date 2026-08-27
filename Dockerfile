@@ -1,13 +1,5 @@
-# Multi-stage Dockerfile for CR Monitor
+# Simple Dockerfile - frontend already built and committed
 
-# Stage 1: Build Angular frontend
-FROM node:20-alpine AS frontend-build
-WORKDIR /app
-COPY frontend/ ./frontend/
-RUN cd frontend && npm ci
-RUN cd frontend && npx ng build --configuration production
-
-# Stage 2: Production image with backend + built frontend
 FROM node:20-alpine
 
 WORKDIR /app/backend
@@ -15,14 +7,14 @@ WORKDIR /app/backend
 # Copy backend files
 COPY backend/ ./
 
-# Remove test files that aren't needed
+# Remove test files
 RUN rm -f test-db.mjs verify.mjs test.csv test.xlsx
 
 # Install production dependencies
 RUN npm ci --production
 
-# Copy built frontend
-COPY --from=frontend-build /app/frontend/dist ./dist/
+# Copy pre-built frontend
+COPY frontend/dist ./dist/
 
 EXPOSE 3000
 
