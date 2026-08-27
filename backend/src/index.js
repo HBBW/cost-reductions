@@ -29,17 +29,34 @@ app.use('/api', reportRoutes);
 app.use('/api', notFound);
 
 /* Serve build Angular (produksi intranet: satu proses, satu port) */
-// Check both Docker location (/app/dist) and local dev (../../frontend/dist/cr-dashboard/browser)
-const distDirDocker = path.resolve(__dirname, '../../../dist');
+// Check multiple locations for frontend dist:
+// 1. Docker: /app/backend/dist/cr-dashboard/browser (from COPY frontend/dist ./dist)
+// 2. Docker alt: /app/dist (if copied there instead)
+// 3. Local dev: ../../frontend/dist/cr-dashboard/browser
+const distDirDocker = path.resolve(__dirname, '../dist/cr-dashboard/browser');
+const distDirDockerAlt = path.resolve(__dirname, '../../../dist');
 const distDirLocal = path.resolve(__dirname, '../../frontend/dist/cr-dashboard/browser');
-const distDir = fs.existsSync(distDirDocker) ? distDirDocker : distDirLocal;
 
-if (fs.existsSync(distDir)) {
+let distDir = null;
+if (fs.existsSync(distDirDocker)) {
+  distDir = distDirDocker;
+} else if (fs.existsSync(distDirDockerAlt)) {
+  distDir = distDirDockerAlt;
+} else if (fs.existsSync(distDirLocal)) {
+  distDir = distDirLocal;
+}
+
+console.log(`[SPA] Looking for frontend at: ${distDir}`);
+console.log(`[SPA] Found: ${distDir ? 'YES' : 'NO - API only mode'}`);
+
+if (distDir) {
   app.use(express.static(distDir));
   app.use((req, res, next) => {
     if (req.method !== 'GET' || req.path.startsWith('/api')) return next();
     res.sendFile(path.join(distDir, 'index.html'));
   });
+} else {
+  console.log('[SPA] WARNING: No frontend found. Only API routes available.');
 }
 
 /* Error handler */
