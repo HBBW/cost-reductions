@@ -14,6 +14,7 @@ export class LoginPage {
 
   username = signal('');
   password = signal('');
+  showPassword = signal(false);
   error = signal<string | null>(null);
   loading = signal(false);
 

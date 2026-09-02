@@ -4,6 +4,7 @@ export interface User {
   name: string;
   role: 'USER' | 'FA' | 'MR';
   departmentId?: string | null;
+  departmentName?: string | null;
 }
 
 export interface Department {
@@ -145,6 +146,9 @@ export interface DetailIdea {
   name: string;
   remark: string | null;
   months: { month: number; potential: number; budget: number; actualCost: number; actualCr: number }[];
+  /** Potential per bulan (target bulanan). */
   potentialCr: number;
+  /** Potential YTD = potential per bulan × jumlah bulan terisi */
+  potential: number;
   actual: number;
 }

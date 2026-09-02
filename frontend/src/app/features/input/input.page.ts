@@ -17,7 +17,7 @@ interface EditableRow {
   open: boolean;
 }
 
-const FIELDS = ['actualCost'] as const;
+const FIELDS = ['budget', 'actualCost'] as const;
 type Field = (typeof FIELDS)[number];
 
 @Component({
@@ -44,6 +44,16 @@ export class InputPage implements OnInit {
   notice = signal<string | null>(null);
   error = signal<string | null>(null);
 
+  /** Grup idea per departemen untuk tampilan section (seperti Detail Idea). */
+  grouped = computed(() => {
+    const map = new Map<string, IdeaListItem[]>();
+    for (const idea of this.ideas()) {
+      if (!map.has(idea.departmentName)) map.set(idea.departmentName, []);
+      map.get(idea.departmentName)!.push(idea);
+    }
+    return [...map.entries()].map(([dept, list]) => ({ dept, ideas: list }));
+  });
+
   /* Editor bulanan */
   selectedIdea = signal<IdeaListItem | null>(null);
   monthly = signal<IdeaMonthlyResponse | null>(null);
@@ -51,9 +61,10 @@ export class InputPage implements OnInit {
   baseline = signal<EditableRow[]>([]);
   savingMonthly = signal(false);
 
-  /* Modal tambah idea */
+  /* Modal tambah/edit idea */
   modalOpen = signal(false);
   modalSaving = signal(false);
+  editingId = signal<number | null>(null);
   fName = signal('');
   fBudget = signal<number>(0);
   fPotentialCr = signal<number>(0);
@@ -62,14 +73,17 @@ export class InputPage implements OnInit {
 
   isMR = this.auth.user()?.role === 'MR';
 
+  /** Nama departemen aktif yang dipakai saat membuat idea (MR memakai filter, USER dept sendiri). */
+  modalDeptLabel = computed(() => {
+    const deptId = this.fDeptId();
+    return this.departments().find((d) => d.id === deptId)?.name ?? '';
+  });
+
   totalPotential = computed(() => {
     const idea = this.monthly()?.idea;
     return idea ? idea.potentialCr : 0;
   });
-  totalBudget = computed(() => {
-    const idea = this.monthly()?.idea;
-    return idea ? idea.budget : 0;
-  });
+  totalBudget = computed(() => this.rows().reduce((s, r) => s + r.budget, 0));
   totalCost = computed(() => this.rows().reduce((s, r) => s + r.actualCost, 0));
   totalActualCr = computed(() => Math.round((this.totalBudget() - this.totalCost()) * 100) / 100);
 
@@ -94,12 +108,11 @@ export class InputPage implements OnInit {
 
   ngOnInit() {
     firstValueFrom(this.http.get<MetaInfo>('/api/meta')).then(async (meta) => {
-      this.years.set(meta.years);
+      this.years.set(this.buildYears(meta.years));
     });
     if (this.isMR) {
       firstValueFrom(this.http.get<Department[]>('/api/departments')).then((d) => {
         this.departments.set(d);
-        if (d.length) this.selectedDeptId.set(d[0].id);
         this.loadIdeas();
       });
     } else {
@@ -107,8 +120,21 @@ export class InputPage implements OnInit {
     }
   }
 
+  /** Tahun yang bisa dipilih: meta-years + rentang beberapa tahun untuk MR/FA agar bisa input data takhta dan yang belum ada ide-nya. */
+  private buildYears(metaYears: number[]): number[] {
+    const role = this.auth.user()?.role;
+    const ys = [...metaYears];
+    if (role === 'MR' || role === 'FA') {
+      const now = new Date().getFullYear();
+      for (let y = now - 5; y <= now + 2; y++) {
+        if (!ys.includes(y)) ys.push(y);
+      }
+    }
+    return ys.sort((a, b) => b - a);
+  }
+
   setYear(y: number) { this.year.set(y); this.closeEditor(); this.loadIdeas(); }
-  setDept(id: string) { this.selectedDeptId.set(id); this.closeEditor(); this.loadIdeas(); }
+  setDept(id: string) { this.selectedDeptId.set(id ? id : null); this.closeEditor(); this.loadIdeas(); }
 
   private params(): string {
     const p = new URLSearchParams({ year: String(this.year()) });
@@ -130,13 +156,24 @@ export class InputPage implements OnInit {
     }
   }
 
-  /* ---------- Modal tambah idea ---------- */
+  /* ---------- Modal tambah/edit idea ---------- */
   openCreate() {
+    this.editingId.set(null);
     this.fName.set('');
     this.fBudget.set(0);
     this.fPotentialCr.set(0);
     this.fRemark.set('');
-    this.fDeptId.set(this.isMR ? this.departments()[0]?.id ?? null : this.auth.user()?.departmentId ?? null);
+    this.fDeptId.set(this.isMR ? (this.selectedDeptId() ?? this.departments()[0]?.id ?? null) : (this.auth.user()?.departmentId ?? null));
+    this.modalOpen.set(true);
+  }
+
+  openEdit(idea: IdeaListItem) {
+    this.editingId.set(idea.id);
+    this.fName.set(idea.name);
+    this.fBudget.set(idea.budget);
+    this.fPotentialCr.set(idea.potentialCr);
+    this.fRemark.set(idea.remark ?? '');
+    this.fDeptId.set(this.isMR ? (idea.departmentId ?? this.departments()[0]?.id ?? null) : (this.auth.user()?.departmentId ?? null));
     this.modalOpen.set(true);
   }
 
@@ -145,24 +182,46 @@ export class InputPage implements OnInit {
   async saveIdea(ev: Event) {
     ev.preventDefault();
     if (!this.fName().trim()) return;
+    const id = this.editingId();
     this.modalSaving.set(true);
     this.error.set(null);
-    const body: Record<string, unknown> = {
-      name: this.fName().trim(),
-      budget: 0,
-      potentialCr: 0,
-      remark: this.fRemark().trim() || null,
-      year: this.year()
-    };
-    if (this.isMR) body['department_id'] = this.fDeptId();
     try {
-      await firstValueFrom(this.http.post('/api/ideas', body));
+      if (id != null) {
+        // Edit: update name & remark; budget/potentialCr dikirim tak berubah (dihitung di Isi Data)
+        await firstValueFrom(this.http.put(`/api/ideas/${id}`, {
+          name: this.fName().trim(),
+          budget: this.fBudget(),
+          potentialCr: this.fPotentialCr(),
+          remark: this.fRemark().trim() || null
+        }));
+      } else {
+        await firstValueFrom(this.http.post('/api/ideas', {
+          name: this.fName().trim(),
+          budget: this.fBudget(),
+          potentialCr: this.fPotentialCr(),
+          remark: this.fRemark().trim() || null,
+          year: this.year(),
+          department_id: this.fDeptId()
+        }));
+      }
       this.modalOpen.set(false);
+      this.closeEditor();
       await this.loadIdeas();
     } catch (err) {
       this.error.set(httpError(err as never));
     } finally {
       this.modalSaving.set(false);
+    }
+  }
+
+  async deleteIdea(idea: IdeaListItem) {
+    if (!confirm(`Hapus idea "${idea.name}"? Aksi ini tidak dapat dibatalkan.`)) return;
+    try {
+      await firstValueFrom(this.http.delete(`/api/ideas/${idea.id}`));
+      if (this.selectedIdea()?.id === idea.id) this.closeEditor();
+      await this.loadIdeas();
+    } catch (err) {
+      this.error.set(httpError(err as never));
     }
   }
 
@@ -218,6 +277,26 @@ export class InputPage implements OnInit {
     return this.rows()[i]?.[field] !== this.baseline()[i]?.[field];
   }
 
+  /** Target potential CR per bulan untuk ditampilkan di tooltip. */
+  potentialPerMonth(): number {
+    return this.monthly()?.idea.potentialCr ?? 0;
+  }
+
+  /** Actual CR YTD (akumulasi bulan terisi) sudah mencapai/melampaui target potential CR tahunan. */
+  ideaAchieved(): boolean {
+    const idea = this.monthly()?.idea;
+    if (!idea || idea.potentialCr <= 0) return false;
+    const totalActual = this.rows().reduce((s, r) => s + this.rowActualCr(r), 0);
+    return totalActual >= idea.potentialCr;
+  }
+
+  /** True bila budget/actualCost melebihi target potential CR per bulan. */
+  exceedsTarget(r: EditableRow, field: Field): boolean {
+    if (this.ideaAchieved()) return false;
+    const target = this.monthly()?.idea.potentialCr ?? 0;
+    return target > 0 && r[field] > target;
+  }
+
   onCell(index: number, field: Field, ev: Event) {
     const el = ev.target as HTMLInputElement;
     const v = parseRupiahInput(el.value);
@@ -238,7 +317,7 @@ export class InputPage implements OnInit {
       .map((r, i) => ({
         month: r.month,
         include: this.editable(r) && FIELDS.some((f) => r[f] !== base[i]?.[f]),
-        values: { actualCost: r.actualCost }
+        values: { budget: r.budget, actualCost: r.actualCost }
       }))
       .filter((x) => x.include)
       .map((x) => ({ month: x.month, ...x.values }));

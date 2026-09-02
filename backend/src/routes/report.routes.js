@@ -2,13 +2,13 @@ import { Router } from 'express';
 import ExcelJS from 'exceljs';
 import { query, t } from '../db/index.js';
 import { ah } from '../utils/http.js';
-import { requireAuth, requireRole, resolveDepartmentScope } from '../middlewares/auth.js';
+import { requireAuth, requireRole, resolveScope, deptFilter } from '../middlewares/auth.js';
 import { monthName } from '../utils/period.js';
 
 const router = Router();
 
-async function fetchDetail(year, scopedDept) {
-  const params = [year];
+async function fetchDetail(year, deptIds) {
+  const params = [year, ...deptFilter('i.department_id', deptIds).params];
   let sql = `
     SELECT d.name AS department_name, i.id AS idea_id, i.name AS idea_name,
            i.potential_cr, i.remark,
@@ -16,8 +16,7 @@ async function fetchDetail(year, scopedDept) {
     FROM ${t('ideas')} i
     JOIN ${t('departments')} d ON d.id = i.department_id
     LEFT JOIN ${t('idea_monthly')} im ON im.idea_id = i.id
-    WHERE i.year = ?`;
-  if (scopedDept) { sql += ' AND i.department_id = ?'; params.push(scopedDept); }
+    WHERE i.year = ?${deptFilter('i.department_id', deptIds).sql}`;
   sql += ' ORDER BY d.name, i.name, im.month';
 
   const rows = await query(sql, params);
@@ -45,14 +44,16 @@ async function fetchDetail(year, scopedDept) {
   }
   return [...ideasMap.values()].map((i) => ({
     ...i,
+    // Potential YTD = potential per bulan × jumlah bulan terisi, sejajar dengan actual (sum bulan terisi)
+    potential: Math.round((i.potentialCr * i.months.length) * 100) / 100,
     actual: Math.round(i.actual * 100) / 100
   }));
 }
 
 router.get('/report/detail', requireAuth, ah(async (req, res) => {
   const year = Number(req.query.year) || new Date().getFullYear();
-  const scopedDept = resolveDepartmentScope(req, req.query.department_id);
-  res.json({ year, ideas: await fetchDetail(year, scopedDept) });
+  const scope = await resolveScope(req, req.query.department_id);
+  res.json({ year, ideas: await fetchDetail(year, scope.deptIds) });
 }));
 
 function csvEscape(v) {
@@ -62,8 +63,8 @@ function csvEscape(v) {
 
 router.get('/report/export/csv', requireAuth, requireRole('FA', 'MR'), ah(async (req, res) => {
   const year = Number(req.query.year) || new Date().getFullYear();
-  const scopedDept = resolveDepartmentScope(req, req.query.department_id);
-  const ideas = await fetchDetail(year, scopedDept);
+  const scope = await resolveScope(req, req.query.department_id);
+  const ideas = await fetchDetail(year, scope.deptIds);
 
   const header = ['Departemen', 'Idea', 'Remark', 'Bulan', 'Potential CR', 'Budget', 'Actual Biaya', 'Actual CR'];
   const lines = [header.map(csvEscape).join(';')];
@@ -86,8 +87,8 @@ router.get('/report/export/csv', requireAuth, requireRole('FA', 'MR'), ah(async 
 
 router.get('/report/export/excel', requireAuth, requireRole('FA', 'MR'), ah(async (req, res) => {
   const year = Number(req.query.year) || new Date().getFullYear();
-  const scopedDept = resolveDepartmentScope(req, req.query.department_id);
-  const ideas = await fetchDetail(year, scopedDept);
+  const scope = await resolveScope(req, req.query.department_id);
+  const ideas = await fetchDetail(year, scope.deptIds);
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'CR Monitor';

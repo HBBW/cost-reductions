@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { query, run, withTransaction, t } from '../db/index.js';
 import { ApiError, ah } from '../utils/http.js';
-import { requireAuth, requireRole, resolveDepartmentScope, assertPeriodEditable } from '../middlewares/auth.js';
+import { requireAuth, requireRole, resolveScope, deptFilter, assertPeriodEditable } from '../middlewares/auth.js';
 import { isMonthlyOpen, isIdeaOpen } from '../utils/period.js';
 
 const router = Router();
@@ -31,16 +31,15 @@ async function getIdeaOr404(id) {
   return rows[0];
 }
 
-function assertCanAccessDept(req, idea) {
-  if (req.user.role === 'USER' && req.user.departmentId !== String(idea.department_id)) {
-    throw new ApiError(403, 'Anda hanya boleh mengakses idea departemen Anda');
-  }
+function assertCanAccessAsync(req, idea) {
+  return resolveScope(req, String(idea.department_id));
 }
 
 /* ---------- List ideas + agregat ---------- */
 router.get('/ideas', requireAuth, ah(async (req, res) => {
   const year = Number(req.query.year) || new Date().getFullYear();
-  const scopedDept = resolveDepartmentScope(req, req.query.department_id);
+  const scope = await resolveScope(req, req.query.department_id);
+  const deptF = deptFilter('i.department_id', scope.deptIds);
 
   let sql = `
     SELECT i.id, i.year, i.department_id, d.name AS department_name, i.name,
@@ -50,9 +49,8 @@ router.get('/ideas', requireAuth, ah(async (req, res) => {
     FROM ${t('ideas')} i
     JOIN ${t('departments')} d ON d.id = i.department_id
     LEFT JOIN ${t('idea_monthly')} im ON im.idea_id = i.id
-    WHERE i.year = ?`;
-  const params = [year];
-  if (scopedDept) { sql += ' AND i.department_id = ?'; params.push(scopedDept); }
+    WHERE i.year = ?${deptF.sql}`;
+  const params = [year, ...deptF.params];
   sql += ' GROUP BY i.id, i.year, i.department_id, d.name, i.name, i.budget, i.potential_cr, i.remark';
   sql += ' ORDER BY d.name, i.name';
 
@@ -82,6 +80,7 @@ router.post('/ideas', requireAuth, requireRole('USER', 'MR'), ah(async (req, res
     : (body.department_id != null ? String(body.department_id).trim() : '');
   if (!departmentId) throw new ApiError(400, 'Departemen wajib dipilih');
 
+  await resolveScope(req, departmentId);
   const deptRows = await query(`SELECT id FROM ${t('departments')} WHERE id = ? AND is_active = 1`, [departmentId]);
   if (!deptRows[0]) throw new ApiError(400, 'Departemen tidak ditemukan / tidak aktif');
 
@@ -102,7 +101,7 @@ router.post('/ideas', requireAuth, requireRole('USER', 'MR'), ah(async (req, res
 /* ---------- Update idea (meta) ---------- */
 router.put('/ideas/:id', requireAuth, requireRole('USER', 'MR'), ah(async (req, res) => {
   const idea = await getIdeaOr404(req.params.id);
-  assertCanAccessDept(req, idea);
+  await assertCanAccessAsync(req, idea);
 
   const body = req.body || {};
   const name = strField(body.name, 'Nama idea', 200);
@@ -111,7 +110,7 @@ router.put('/ideas/:id', requireAuth, requireRole('USER', 'MR'), ah(async (req, 
   const potentialCr = numField(body.potentialCr, 'Potential CR');
   const remark = strField(body.remark, 'Remark', 2000);
 
-  // Lock Potential CR setelah 18 Feb (kecuali MR)
+  // Lock Potential CR setelah 19 Feb (kecuali MR)
   // Budget TIDAK terkunci - bisa di-edit kapan saja
   if (req.user.role !== 'MR' && !isIdeaOpen(Number(idea.year))) {
     // Coba update budget saja (boleh), potentialCr diabaikan jika terkunci
@@ -119,7 +118,7 @@ router.put('/ideas/:id', requireAuth, requireRole('USER', 'MR'), ah(async (req, 
       `UPDATE ${t('ideas')} SET name = ?, budget = ?, remark = ?, updated_at = ? WHERE id = ?`,
       [name, budget, remark, new Date(), idea.id]
     );
-    return res.json({ message: 'Idea diperbarui (Budget diperbarui, Potential CR terkunci setelah 18 Feb)' });
+    return res.json({ message: 'Idea diperbarui (Budget diperbarui, Potential CR terkunci setelah 19 Feb)' });
   }
 
   await run(
@@ -132,7 +131,7 @@ router.put('/ideas/:id', requireAuth, requireRole('USER', 'MR'), ah(async (req, 
 /* ---------- Delete idea (khusus MR) ---------- */
 router.delete('/ideas/:id', requireAuth, requireRole('MR'), ah(async (req, res) => {
   const idea = await getIdeaOr404(req.params.id);
-  assertCanAccessDept(req, idea);
+  await assertCanAccessAsync(req, idea);
 
   await withTransaction(async ({ r }) => {
     await r(`DELETE FROM ${t('idea_monthly')} WHERE idea_id = ?`, [idea.id]);
@@ -144,7 +143,7 @@ router.delete('/ideas/:id', requireAuth, requireRole('MR'), ah(async (req, res) 
 /* ---------- Data bulanan per idea ---------- */
 router.get('/ideas/:id/monthly', requireAuth, ah(async (req, res) => {
   const idea = await getIdeaOr404(req.params.id);
-  assertCanAccessDept(req, idea);
+  await assertCanAccessAsync(req, idea);
 
   const rows = await query(
     `SELECT month, budget, actual_cost, updated_at FROM ${t('idea_monthly')} WHERE idea_id = ? ORDER BY month`,
@@ -159,12 +158,14 @@ router.get('/ideas/:id/monthly', requireAuth, ah(async (req, res) => {
   for (let m = 1; m <= 12; m++) {
     const r = byMonth.get(m);
     const cost = r ? Number(r.actual_cost) : 0;
+    // Budget per bulan: pakai nilai bulanan jika sudah diisi, default Budget/Tahun
+    const budget = r ? Number(r.budget) : ideaBudget;
     months.push({
       month: m,
       potentialCr: ideaPotentialCr,
-      budget: ideaBudget,
+      budget,
       actualCost: cost,
-      actualCr: Math.round((ideaBudget - cost) * 100) / 100,
+      actualCr: Math.round((budget - cost) * 100) / 100,
       filled: Boolean(r),
       updatedAt: r ? r.updated_at : null
     });
@@ -196,12 +197,11 @@ router.get('/ideas/:id/monthly', requireAuth, ah(async (req, res) => {
   });
 }));
 
-/* Simpan data bulanan - hanya actual_cost dari user, budget dari idea level */
+/* Simpan data bulanan - user isi budget & actual_cost per bulan, potential dari idea level */
 router.put('/ideas/:id/monthly', requireAuth, requireRole('USER', 'MR'), ah(async (req, res) => {
   const idea = await getIdeaOr404(req.params.id);
-  assertCanAccessDept(req, idea);
+  await assertCanAccessAsync(req, idea);
   const year = Number(idea.year);
-  const ideaBudget = Number(idea.budget);
   const ideaPotentialCr = Number(idea.potential_cr);
 
   const incoming = Array.isArray(req.body?.rows) ? req.body.rows : [];
@@ -213,7 +213,7 @@ router.put('/ideas/:id/monthly', requireAuth, requireRole('USER', 'MR'), ah(asyn
     assertPeriodEditable(isMonthlyOpen(year, month), req);
     return {
       month,
-      budget: ideaBudget,
+      budget: numField(row.budget, `Budget bulan ${month}`),
       actualCost: numField(row.actualCost, `Actual biaya bulan ${month}`)
     };
   });

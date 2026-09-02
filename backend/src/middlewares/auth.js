@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { config } from '../config.js';
+import { query } from '../db/index.js';
 import { ApiError, ah } from '../utils/http.js';
 
 export function readToken(req) {
@@ -43,16 +44,34 @@ export const requireRole = (...roles) => (req, res, next) => {
 };
 
 /**
- * USER hanya boleh mengakses data departemennya sendiri.
- * FA/MR boleh semua departemen. Mengembalikan department_id efektif.
+ * Resolusi akses departemen -> { deptIds: string[] | null }.
+ *   USER : [department_id sendiri]
+ *   FA/MR: null (semua departemen) — MR admin full-akses
+ * Jika `requestedDeptId` diisi, dibatasi ke id tsb.
  */
-export function resolveDepartmentScope(req, requestedDeptId) {
-  if (req.user.role === 'USER') {
+export async function resolveScope(req, requestedDeptId) {
+  const role = req.user ? req.user.role : 'FA';
+  const reqId = requestedDeptId ? String(requestedDeptId).trim() : null;
+
+  if (role === 'USER') {
     if (!req.user.departmentId) throw new ApiError(403, 'Akun Anda belum terhubung ke departemen');
-    return req.user.departmentId;
+    return { deptIds: [req.user.departmentId] };
   }
-  const dept = Number(requestedDeptId) || null;
-  return dept; // null = semua departemen
+
+  return { deptIds: reqId ? [reqId] : null };
+}
+
+/**
+ * Bangun fragmen filter for sebuah kolom department_id.
+ *   deptIds === null  -> semua (tanpa filter)
+ *   deptIds === []    -> tidak ada hasil
+ *   deptIds = [...]   -> IN (...)
+ */
+export function deptFilter(column, deptIds) {
+  if (deptIds === null) return { sql: '', params: [] };
+  if (deptIds.length === 0) return { sql: ` AND 1 = 0`, params: [] };
+  const ph = deptIds.map(() => '?').join(',');
+  return { sql: ` AND ${column} IN (${ph})`, params: [...deptIds] };
 }
 
 /** MR boleh lewati lock periode. */

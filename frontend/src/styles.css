@@ -1,25 +1,24 @@
-@import "@fontsource-variable/fraunces";
-@import "@fontsource-variable/public-sans";
+@import "@fontsource-variable/inter";
 @import "tailwindcss";
 
 @theme {
-  --color-paper: #F7F5F0;
+  --color-paper: #F3F6FB;
   --color-surface: #FFFFFF;
-  --color-ink: #1C1917;
-  --color-ink-soft: #44403C;
-  --color-muted: #78716C;
-  --color-faint: #A8A29E;
-  --color-hairline: #E7E2D9;
-  --color-forest: #175E4C;
-  --color-forest-deep: #0E3E31;
-  --color-forest-tint: #E9F1ED;
-  --color-ochre: #A16207;
-  --color-ochre-tint: #F6EBD5;
+  --color-ink: #14233B;
+  --color-ink-soft: #2E3B54;
+  --color-muted: #5B6B85;
+  --color-faint: #98A5BC;
+  --color-hairline: #E2E8F2;
+  --color-forest: #1F4E9C;
+  --color-forest-deep: #143466;
+  --color-forest-tint: #E8EEF8;
+  --color-ochre: #2F6FE4;
+  --color-ochre-tint: #E5EDFD;
   --color-rust: #B42318;
   --color-rust-tint: #FBEEEC;
 
-  --font-display: "Fraunces Variable", Georgia, "Times New Roman", serif;
-  --font-sans: "Public Sans Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Inter Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
 html {
@@ -73,7 +72,7 @@ body::after {
 /* ---------- Skeleton ---------- */
 .skeleton {
   border-radius: 6px;
-  background: linear-gradient(90deg, #ece8df 25%, #f4f1ea 50%, #ece8df 75%);
+  background: linear-gradient(90deg, #e3e8f2 25%, #eff3f9 50%, #e3e8f2 75%);
   background-size: 200% 100%;
   animation: shimmer 1.4s ease-in-out infinite;
 }
@@ -118,7 +117,7 @@ input[type="number"] {
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #d6d0c4 transparent;
+  scrollbar-color: #c5cfdf transparent;
 }
 
 /* ---------- Kelas komponen bersama ---------- */
@@ -136,7 +135,7 @@ input[type="number"] {
   }
   .select-base:focus {
     border-color: var(--color-forest);
-    box-shadow: 0 0 0 3px rgba(23, 94, 76, 0.12);
+    box-shadow: 0 0 0 3px rgba(31, 78, 156, 0.14);
   }
 
   .input-base {
@@ -189,6 +188,21 @@ input[type="number"] {
     background-color: var(--color-paper);
     color: var(--color-faint);
     cursor: not-allowed;
+  }
+
+  /* Peringatan lunak: sel melebihi target potential CR per bulan (tetap bisa diisi) */
+  .cell-warning {
+    background-color: #FFF7ED;
+    border-color: #F59E0B;
+    color: var(--color-ink);
+  }
+  .cell-warning:focus {
+    border-color: #D97706;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
+  }
+  .cell-warning:disabled {
+    background-color: #FFF7ED;
+    color: var(--color-faint);
   }
 
   .btn {
@@ -244,7 +258,7 @@ input[type="number"] {
     border: 1px solid var(--color-hairline);
   }
   .btn-secondary:hover:not(:disabled) {
-    border-color: #cfc7b8;
+    border-color: #c2cde0;
     color: var(--color-ink);
   }
 

@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import authRoutes from './routes/auth.routes.js';
-import metaRoutes from './routes/meta.routes.js';
+import metaRoutes from './routes/meta.routes.js';   
 import ideaRoutes from './routes/ideas.routes.js';
 import targetRoutes from './routes/targets.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';

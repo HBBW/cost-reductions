@@ -34,9 +34,9 @@ export class TrendChart implements AfterViewInit {
       data: {
         labels: [],
         datasets: [
-          { label: 'Target', data: [], backgroundColor: '#D8D2C6', borderRadius: 3, order: 3 },
-          { label: 'Actual CR', data: [], backgroundColor: '#175E4C', borderRadius: 3, order: 2 },
-          { label: 'Kumulatif YTD', data: [], type: 'line', borderColor: '#A16207', backgroundColor: '#A16207', borderWidth: 1.75, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#A16207', tension: 0.25, yAxisID: 'y1', order: 1 }
+          { label: 'Target', data: [], backgroundColor: '#C7D2E6', borderRadius: 3, order: 3 },
+          { label: 'Actual CR', data: [], backgroundColor: '#1F4E9C', borderRadius: 3, order: 2 },
+          { label: 'Kumulatif YTD', data: [], type: 'line', borderColor: '#2F6FE4', backgroundColor: '#2F6FE4', borderWidth: 1.75, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#2F6FE4', tension: 0.25, yAxisID: 'y1', order: 1 }
         ]
       },
       options: {
@@ -46,9 +46,9 @@ export class TrendChart implements AfterViewInit {
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: '#1C1917',
-            titleFont: { family: '"Public Sans Variable", sans-serif', size: 11 },
-            bodyFont: { family: '"Public Sans Variable", sans-serif', size: 12 },
+            backgroundColor: '#14233B',
+            titleFont: { family: '"Inter Variable", sans-serif', size: 11 },
+            bodyFont: { family: '"Inter Variable", sans-serif', size: 12 },
             padding: 10,
             cornerRadius: 6,
             callbacks: {
@@ -59,21 +59,21 @@ export class TrendChart implements AfterViewInit {
         scales: {
           x: {
             grid: { display: false },
-            border: { color: '#E7E2D9' },
-            ticks: { color: '#78716C', font: { size: 11 } }
+            border: { color: '#E2E8F2' },
+            ticks: { color: '#5B6B85', font: { size: 11 } }
           },
           y: {
             beginAtZero: true,
             border: { display: false },
-            grid: { color: 'rgba(28,25,23,0.055)' },
-            ticks: { color: '#78716C', font: { size: 11 }, callback: (v) => fmtCompact(v as number) }
+            grid: { color: 'rgba(31,78,156,0.07)' },
+            ticks: { color: '#5B6B85', font: { size: 11 }, callback: (v) => fmtCompact(v as number) }
           },
           y1: {
             position: 'right',
             beginAtZero: true,
             border: { display: false },
             grid: { drawOnChartArea: false },
-            ticks: { color: '#A16207', font: { size: 11 }, callback: (v) => fmtCompact(v as number) }
+            ticks: { color: '#2F6FE4', font: { size: 11 }, callback: (v) => fmtCompact(v as number) }
           }
         }
       }

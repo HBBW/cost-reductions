@@ -1,23 +1,21 @@
 import { Router } from 'express';
 import { query, withTransaction, t } from '../db/index.js';
 import { ApiError, ah } from '../utils/http.js';
-import { requireAuth, requireRole, assertPeriodEditable } from '../middlewares/auth.js';
+import { requireAuth, requireRole, resolveScope, deptFilter, assertPeriodEditable } from '../middlewares/auth.js';
 import { isTargetOpen, targetLockDate, monthName } from '../utils/period.js';
 
 const router = Router();
 
 router.get('/', requireAuth, ah(async (req, res) => {
   const year = Number(req.query.year) || new Date().getFullYear();
-  const departmentId = req.query.department_id ? String(req.query.department_id).trim() : null;
+  const scope = await resolveScope(req, req.query.department_id);
+  const deptF = deptFilter('t.department_id', scope.deptIds);
 
-  let sql = `SELECT t.department_id, d.name AS department_name, t.month, t.target_amount
-             FROM ${t('department_targets')} t JOIN ${t('departments')} d ON d.id = t.department_id
-             WHERE t.year = ?`;
-  const params = [year];
-  if (departmentId) { sql += ' AND t.department_id = ?'; params.push(departmentId); }
-  sql += ' ORDER BY d.name, t.month';
-
-  const rows = await query(sql, params);
+  const sql = `SELECT t.department_id, d.name AS department_name, t.month, t.target_amount
+               FROM ${t('department_targets')} t JOIN ${t('departments')} d ON d.id = t.department_id
+               WHERE t.year = ?${deptF.sql}
+               ORDER BY d.name, t.month`;
+  const rows = await query(sql, [year, ...deptF.params]);
   const byDept = new Map();
   for (const r of rows) {
     const dept = String(r.department_id);
@@ -38,6 +36,7 @@ router.put('/:year/:departmentId', requireAuth, requireRole('USER', 'MR'), ah(as
     departmentId = req.user.departmentId;
   }
 
+  await resolveScope(req, departmentId);
   const deptRows = await query(`SELECT id, name FROM ${t('departments')} WHERE id = ? AND is_active = 1`, [departmentId]);
   if (!deptRows[0]) throw new ApiError(400, 'Departemen tidak ditemukan / tidak aktif');
 

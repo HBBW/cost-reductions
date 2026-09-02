@@ -18,6 +18,11 @@
     <p class="rounded-md bg-rust-tint px-3 py-2 text-sm text-rust">{{ error() }}</p>
   }
 
+  <p class="mb-4 text-xs text-muted">
+    Sisa Potential CR = Potential CR − Actual CR. Jika Actual melebihi potential,
+    kolom ini menampilkan kelebihan berupa angka positif (+), bukan negatif (−).
+  </p>
+
   @for (group of grouped(); track group.dept) {
     <section class="fade-up">
       <div class="mb-1 flex items-baseline justify-between border-b border-hairline pb-2">
@@ -33,7 +38,7 @@
               <th class="mlabel px-2 py-2.5 font-medium">Nama Idea</th>
               <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Potential/Thn</th>
               <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Actual/Thn</th>
-              <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Sisa</th>
+              <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Sisa Potential CR</th>
               <th class="mlabel px-4 py-2.5 font-medium">Remark</th>
             </tr>
           </thead>
@@ -45,14 +50,18 @@
                   <svg class="mx-auto h-3.5 w-3.5 text-faint transition-transform duration-200 {{ expanded().has(keyOf(idea)) ? 'rotate-90' : '' }}"
                        fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
                 </td>
-                <td class="max-w-xs truncate px-2 py-2.5 font-medium text-ink" [title]="idea.name">{{ idea.name }}</td>
-                <td class="table-cell-num px-3 py-2.5 text-ink-soft">{{ fmt(idea.potentialCr) }}</td>
+                <td class="max-w-xs px-2 py-2.5 font-medium text-ink whitespace-normal break-words" [title]="idea.name">{{ idea.name }}</td>
+                <td class="table-cell-num px-3 py-2.5 text-ink-soft" [title]="'Potential YTD (potential per bulan ' + fmt(idea.potentialCr) + ' × bulan terisi)'">{{ fmt(idea.potential) }}</td>
                 <td class="table-cell-num px-3 py-2.5 font-semibold"
                     [class.text-forest]="idea.actual >= 0"
-                    [class.text-rust]="idea.actual < 0">{{ fmt(idea.actual) }}</td>
+                    [class.text-rust]="idea.actual < 0">
+                   {{ fmt(idea.actual) }}
+                </td>
                 <td class="table-cell-num px-3 py-2.5"
-                    [class.text-rust]="(idea.potentialCr - idea.actual) < 0"
-                    [class.text-forest]="(idea.potentialCr - idea.actual) >= 0">{{ fmt(idea.potentialCr - idea.actual) }}</td>
+                    [class.text-forest]="idea.actual > idea.potential"
+                    [class.text-ink-soft]="idea.actual <= idea.potential">
+                   {{ idea.actual > idea.potential ? ('+' + fmt(idea.actual - idea.potential)) : fmt(idea.potential - idea.actual) }}
+                </td>
                 <td class="max-w-[16rem] truncate px-4 py-2.5 text-muted" [title]="idea.remark || ''">{{ idea.remark || '—' }}</td>
               </tr>
 

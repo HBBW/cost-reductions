@@ -42,7 +42,7 @@ export const routes: Routes = [
       },
       {
         path: 'laporan',
-        canActivate: [roleGuard('MR')],
+        canActivate: [roleGuard('FA', 'MR')],
         loadComponent: () => import('./features/laporan/laporan.page').then((m) => m.LaporanPage),
         title: 'Laporan — CR Monitor'
       }

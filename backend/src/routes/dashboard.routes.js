@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { query, t } from '../db/index.js';
 import { ah } from '../utils/http.js';
-import { requireAuth, resolveDepartmentScope } from '../middlewares/auth.js';
+import { requireAuth, resolveScope, deptFilter } from '../middlewares/auth.js';
 import { isMonthlyOpen } from '../utils/period.js';
 
 const router = Router();
@@ -12,7 +12,8 @@ const router = Router();
  */
 router.get('/dashboard/summary', requireAuth, ah(async (req, res) => {
   const year = Number(req.query.year) || new Date().getFullYear();
-  const scopedDept = resolveDepartmentScope(req, req.query.department_id);
+  const scope = await resolveScope(req, req.query.department_id);
+  const deptF = deptFilter('d.id', scope.deptIds);
 
   let sql = `
     SELECT d.id AS department_id, d.name AS department_name,
@@ -32,17 +33,17 @@ router.get('/dashboard/summary', requireAuth, ah(async (req, res) => {
       WHERE i.year = ?
       GROUP BY i.department_id
     ) idea_agg ON idea_agg.department_id = d.id
-    WHERE d.is_active = 1
+    WHERE d.is_active = 1${deptF.sql}
     ORDER BY d.name`;
 
-  const params = [year];
-  if (scopedDept) { sql = sql.replace('WHERE d.is_active = 1', 'WHERE d.is_active = 1 AND d.id = ?'); params.push(scopedDept); }
+  const params = [year, ...deptF.params];
   const rows = await query(sql, params);
-  const tgtParams = [year];
-  let tgtSql = `SELECT department_id, SUM(target_amount) AS total FROM ${t('department_targets')} WHERE year = ?`;
-  if (scopedDept) { tgtSql += ' AND department_id = ?'; tgtParams.push(scopedDept); }
-  tgtSql += ' GROUP BY department_id';
-  const tgtRows = await query(tgtSql, tgtParams);
+
+  const tgtF = deptFilter('department_id', scope.deptIds);
+  const tgtRows = await query(
+    `SELECT department_id, SUM(target_amount) AS total FROM ${t('department_targets')} WHERE year = ?${tgtF.sql} GROUP BY department_id`,
+    [year, ...tgtF.params]
+  );
   const tgtMap = new Map(tgtRows.map((r) => [String(r.department_id), Number(r.total)]));
 
   const departments = rows.map((r) => {
@@ -59,7 +60,7 @@ router.get('/dashboard/summary', requireAuth, ah(async (req, res) => {
       potential,
       actualCost: actualCostTotal,
       actual,
-      remaining: Math.round((potential - actualCostTotal) * 100) / 100,
+      remaining: Math.round((actual - potential) * 100) / 100,
       achievementPct: potential > 0 ? Math.round((actual / potential) * 1000) / 10 : null,
       target: tgtMap.get(deptId) || 0
     };
@@ -85,31 +86,26 @@ router.get('/dashboard/summary', requireAuth, ah(async (req, res) => {
 /** Tren bulanan: actual CR per bulan, target per bulan, kumulatif YTD. */
 router.get('/dashboard/trend', requireAuth, ah(async (req, res) => {
   const year = Number(req.query.year) || new Date().getFullYear();
-  const scopedDept = resolveDepartmentScope(req, req.query.department_id);
+  const scope = await resolveScope(req, req.query.department_id);
 
-  const buildFilter = (alias, params) => {
-    let f = ` AND ${alias}.year = ?`;
-    params.push(year);
-    if (scopedDept) { f += ` AND ${alias}.department_id = ?`; params.push(scopedDept); }
-    return f;
-  };
-
-  const actParams = [];
-  const actSql = `
-    SELECT im.month, SUM(im.budget - im.actual_cost) AS actual
-    FROM ${t('idea_monthly')} im JOIN ${t('ideas')} i ON i.id = im.idea_id
-    WHERE 1=1${buildFilter('i', actParams)}
-    GROUP BY im.month`;
-  const actRows = await query(actSql, actParams);
+  const actF = deptFilter('i.department_id', scope.deptIds);
+  const actRows = await query(
+    `SELECT im.month, SUM(im.budget - im.actual_cost) AS actual
+     FROM ${t('idea_monthly')} im JOIN ${t('ideas')} i ON i.id = im.idea_id
+     WHERE i.year = ?${actF.sql}
+     GROUP BY im.month`,
+    [year, ...actF.params]
+  );
   const actMap = new Map(actRows.map((r) => [Number(r.month), Number(r.actual)]));
 
-  const tgtParams = [];
-  const tgtSql = `
-    SELECT month, SUM(target_amount) AS target
-    FROM ${t('department_targets')} t
-    WHERE 1=1${buildFilter('t', tgtParams)}
-    GROUP BY month`;
-  const tgtRows = await query(tgtSql, tgtParams);
+  const tgtF = deptFilter('t.department_id', scope.deptIds);
+  const tgtRows = await query(
+    `SELECT month, SUM(target_amount) AS target
+     FROM ${t('department_targets')} t
+     WHERE t.year = ?${tgtF.sql}
+     GROUP BY month`,
+    [year, ...tgtF.params]
+  );
   const tgtMap = new Map(tgtRows.map((r) => [Number(r.month), Number(r.target)]));
 
   let cumulative = 0;
@@ -135,30 +131,32 @@ router.get('/dashboard/trend', requireAuth, ah(async (req, res) => {
  */
 router.get('/dashboard/completeness', requireAuth, ah(async (req, res) => {
   const year = Number(req.query.year) || new Date().getFullYear();
-  const scopedDept = resolveDepartmentScope(req, req.query.department_id);
+  const scope = await resolveScope(req, req.query.department_id);
 
-  let deptSql = `SELECT id, name FROM ${t('departments')} WHERE is_active = 1`;
-  const deptParams = [];
-  if (scopedDept) { deptSql += ' AND id = ?'; deptParams.push(scopedDept); }
-  deptSql += ' ORDER BY name';
-  const depts = await query(deptSql, deptParams);
+  const deptF = deptFilter('id', scope.deptIds);
+  const depts = await query(
+    `SELECT id, name FROM ${t('departments')} WHERE is_active = 1${deptF.sql} ORDER BY name`,
+    deptF.params
+  );
 
-  const ideaParams = [year];
-  let ideaSql = `SELECT id, department_id, name FROM ${t('ideas')} WHERE year = ?`;
-  if (scopedDept) { ideaSql += ' AND department_id = ?'; ideaParams.push(scopedDept); }
-  const ideas = await query(ideaSql, ideaParams);
+  const ideaF = deptFilter('department_id', scope.deptIds);
+  const ideas = await query(
+    `SELECT id, department_id, name FROM ${t('ideas')} WHERE year = ?${ideaF.sql}`,
+    [year, ...ideaF.params]
+  );
 
-  const filledParams = [year];
-  let filledSql = `
-    SELECT im.idea_id, im.month FROM ${t('idea_monthly')} im
-    JOIN ${t('ideas')} i ON i.id = im.idea_id
-    WHERE i.year = ?`;
-  if (scopedDept) { filledSql += ' AND i.department_id = ?'; filledParams.push(scopedDept); }
-  const filled = await query(filledSql, filledParams);
+  const filledF = deptFilter('i.department_id', scope.deptIds);
+  const filled = await query(
+    `SELECT im.idea_id, im.month FROM ${t('idea_monthly')} im
+     JOIN ${t('ideas')} i ON i.id = im.idea_id
+     WHERE i.year = ?${filledF.sql}`,
+    [year, ...filledF.params]
+  );
 
+  const tgtF = deptFilter('department_id', scope.deptIds);
   const tgtRows = await query(
-    `SELECT department_id, COUNT(*) AS c FROM ${t('department_targets')} WHERE year = ?${scopedDept ? ' AND department_id = ?' : ''} GROUP BY department_id`,
-    scopedDept ? [year, scopedDept] : [year]
+    `SELECT department_id, COUNT(*) AS c FROM ${t('department_targets')} WHERE year = ?${tgtF.sql} GROUP BY department_id`,
+    [year, ...tgtF.params]
   );
   const tgtCount = new Map(tgtRows.map((r) => [String(r.department_id), Number(r.c)]));
 

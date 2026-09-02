@@ -1,53 +1,43 @@
-<div class="grid min-h-dvh lg:grid-cols-[46%_54%]">
-  <!-- Panel brand -->
-  <aside class="relative hidden flex-col justify-between overflow-hidden bg-forest-deep p-12 lg:flex">
-    <div class="pointer-events-none absolute inset-0 opacity-[0.07]" aria-hidden="true"
-         style="background-image: url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E&quot;)"></div>
-
-    <div class="flex items-baseline gap-2">
-      <span class="font-display text-xl font-semibold tracking-tight text-paper">CR<span class="text-paper/50">·</span>Monitor</span>
-    </div>
-
-    <div class="fade-up">
-      <p class="font-display text-[44px] leading-[1.15] font-medium tracking-tight text-paper">
-        Setiap rupiah penghematan,<br/>
-        <em class="text-ochre-tint/90 not-italic">tercatat rapi.</em>
-      </p>
-      <p class="mt-5 max-w-sm text-sm leading-relaxed text-paper/60">
-        Actual CR dihitung otomatis dari Budget dan Actual Biaya — tanpa rumus Excel
-        yang bisa hilang atau berubah, dengan status input tiap departemen terlihat real-time.
-      </p>
-    </div>
-
-    <div class="flex items-center gap-6 text-paper/40">
-      <span class="mlabel !text-paper/40">Dashboard Internal</span>
-      <span class="h-px w-10 bg-paper/20"></span>
-      <span class="mlabel !text-paper/40">Cost Reduction</span>
-    </div>
-  </aside>
-
-  <!-- Form -->
-  <main class="flex items-center justify-center px-6 py-16">
-    <div class="w-full max-w-sm fade-up d1">
-      <!-- Brand ringkas utk mobile -->
-      <div class="mb-8 flex items-center gap-2 lg:hidden">
-        <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-forest font-display text-sm font-bold text-paper">CR</div>
-        <span class="font-display text-lg font-semibold tracking-tight">CR·Monitor</span>
+<div class="grid min-h-dvh place-items-center px-6 py-12">
+  <!-- Brand + Card terpusat -->
+  <div class="w-full max-w-sm fade-up">
+    <!-- Brand -->
+    <div class="mb-8 flex items-center justify-center gap-2.5">
+      <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-forest font-display text-sm font-bold text-paper shadow-sm shadow-forest/20">CR</div>
+      <div class="leading-tight">
+        <p class="font-display text-xl font-semibold tracking-tight text-ink">CR<span class="text-forest">·</span>Monitor</p>
+        <p class="mlabel !text-[9.5px]">Cost Reduction Dashboard</p>
       </div>
+    </div>
 
+    <!-- Card -->
+    <div class="rounded-2xl border border-hairline bg-surface p-8 shadow-xl shadow-forest/10">
       <p class="mlabel mb-2">Selamat datang kembali</p>
-      <h1 class="font-display text-3xl font-semibold tracking-tight text-ink">Masuk</h1>
+      <h1 class="font-display text-2xl font-semibold tracking-tight text-ink">Masuk</h1>
 
-      <form (submit)="submit($event)" class="mt-8 space-y-4">
+      <form (submit)="submit($event)" class="mt-7 space-y-4">
         <div>
           <label for="username" class="mb-1.5 block text-sm font-medium text-ink-soft">Username</label>
           <input id="username" type="text" autocomplete="username" required class="input-base"
-                 [value]="username()" (input)="username.set($any($event.target).value)" placeholder="mis. produksi"/>
+                 [value]="username()" (input)="username.set($any($event.target).value)" placeholder="1234"/>
         </div>
         <div>
           <label for="password" class="mb-1.5 block text-sm font-medium text-ink-soft">Password</label>
-          <input id="password" type="password" autocomplete="current-password" required class="input-base"
-                 [value]="password()" (input)="password.set($any($event.target).value)" placeholder="••••••••"/>
+          <div class="relative">
+            <input id="password" [type]="showPassword() ? 'text' : 'password'" autocomplete="current-password" required class="input-base pr-10"
+                   [value]="password()" (input)="password.set($any($event.target).value)" placeholder="••••••••"/>
+            <button type="button" (click)="showPassword.update((v) => !v)"
+                    [attr.aria-label]="showPassword() ? 'Sembunyikan password' : 'Lihat password'"
+                    class="absolute inset-y-0 right-0 flex h-full w-10 items-center justify-center text-faint hover:text-ink">
+              @if (showPassword()) {
+                <!-- eye (visible) -->
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.25 12s3.75-6.75 9.75-6.75 9.75 6.75 9.75 6.75-3.75 6.75-9.75 6.75S2.25 12 2.25 12z"/><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/></svg>
+              } @else {
+                <!-- eye-off (hidden) -->
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.25 12s3.75-6.75 9.75-6.75 9.75 6.75 9.75 6.75M6.6 6.6l10.8 10.8"/><path d="M9.878 9.878A3 3 0 115.5 12a3 3 0 014.378-2.122z"/></svg>
+              }
+            </button>
+          </div>
         </div>
 
         @if (error()) {
@@ -59,9 +49,9 @@
         </button>
       </form>
 
-      <p class="mt-10 border-t border-hairline pt-4 text-xs leading-relaxed text-faint">
+      <p class="mt-8 border-t border-hairline pt-4 text-xs leading-relaxed text-faint">
         Lupa akun atau perlu akses departemen lain? Hubungi MR.
       </p>
     </div>
-  </main>
+  </div>
 </div>

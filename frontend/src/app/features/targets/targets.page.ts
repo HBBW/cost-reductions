@@ -16,6 +16,11 @@ interface IdeaTarget {
   actual: number;
 }
 
+interface DeptGroup {
+  dept: string;
+  items: { idea: IdeaTarget; index: number }[];
+}
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [PageHeader, YearSelect, SaveBar],
@@ -48,6 +53,13 @@ export class TargetsPage implements OnInit {
     return this.departments().find((d) => d.id === id)?.name ?? '';
   });
 
+  /** True bila tanggal hari ini sudah melewati 19 Februari tahun berjalan (target terkunci). */
+  targetLocked = computed(() => {
+    const now = new Date();
+    const lockDate = new Date(now.getFullYear(), 1, 19); // 19 Feb
+    return now.getTime() > lockDate.getTime();
+  });
+
   dirtyCount = computed(() => {
     const cur = this.ideas();
     const base = this.baseline();
@@ -62,21 +74,55 @@ export class TargetsPage implements OnInit {
   totalPotential = computed(() => this.ideas().reduce((s, i) => s + i.potentialCr, 0));
   totalActual = computed(() => this.ideas().reduce((s, i) => s + i.actual, 0));
 
+  /** Grup idea per departemen, menyimpan indeks datar untuk edit inline. */
+  grouped = computed<DeptGroup[]>(() => {
+    const list = this.ideas();
+    const map = new Map<string, { idea: IdeaTarget; index: number }[]>();
+    list.forEach((idea, index) => {
+      if (!map.has(idea.departmentName)) map.set(idea.departmentName, []);
+      map.get(idea.departmentName)!.push({ idea, index });
+    });
+    return [...map.entries()].map(([dept, items]) => ({ dept, items }));
+  });
+
+  groupTotals(group: DeptGroup): { budget: number; potential: number; actual: number } {
+    return group.items.reduce(
+      (acc, { idea }) => ({
+        budget: acc.budget + idea.budget,
+        potential: acc.potential + idea.potentialCr,
+        actual: acc.actual + idea.actual
+      }),
+      { budget: 0, potential: 0, actual: 0 }
+    );
+  }
+
   ngOnInit() {
     firstValueFrom(this.http.get<MetaInfo>('/api/meta'))
-      .then((meta) => this.years.set(meta.years))
+      .then((meta) => this.years.set(this.buildYears(meta.years)))
       .catch(() => {});
     firstValueFrom(this.http.get<Department[]>('/api/departments'))
       .then((d) => {
         this.departments.set(d);
-        if (this.isMR && d.length) this.selectedDeptId.set(d[0].id);
         this.loadIdeas();
       })
       .catch(() => { this.loadIdeas(); });
   }
 
+  /** Tahun yang bisa dipilih: meta-years + rentang beberapa tahun untuk MR/FA agar bisa input data takhta dan yang belum ada ide-nya. */
+  private buildYears(metaYears: number[]): number[] {
+    const role = this.auth.user()?.role;
+    const ys = [...metaYears];
+    if (role === 'MR' || role === 'FA') {
+      const now = new Date().getFullYear();
+      for (let y = now - 5; y <= now + 2; y++) {
+        if (!ys.includes(y)) ys.push(y);
+      }
+    }
+    return ys.sort((a, b) => b - a);
+  }
+
   setYear(y: number) { this.year.set(y); this.loadIdeas(); }
-  setDept(id: string) { this.selectedDeptId.set(id); this.loadIdeas(); }
+  setDept(id: string) { this.selectedDeptId.set(id ? id : null); this.loadIdeas(); }
 
   private deptParam(): string | null {
     return this.isMR ? this.selectedDeptId() : (this.auth.user()?.departmentId ?? null);
@@ -131,7 +177,7 @@ export class TargetsPage implements OnInit {
   }
 
   actualCr(i: IdeaTarget): number {
-    return Math.round((i.budget - i.actual) * 100) / 100;
+    return Math.round(i.actual * 100) / 100;
   }
 
   revertRows() {

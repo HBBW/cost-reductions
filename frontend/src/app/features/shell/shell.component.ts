@@ -1,6 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
 import { Department } from '../../core/models';
@@ -18,7 +18,14 @@ interface NavItem {
 })
 export class ShellComponent implements OnInit {
   auth = inject(AuthService);
+  private router = inject(Router);
   private http = inject(HttpClient);
+
+  /** Menu mobile terbuka/tutup */
+  menuOpen = signal(false);
+
+  toggleMenu() { this.menuOpen.update((v) => !v); }
+  closeMenu() { if (this.menuOpen()) this.menuOpen.set(false); }
 
   private departments = signal<Department[]>([]);
 
@@ -28,7 +35,7 @@ export class ShellComponent implements OnInit {
     { path: '/targets', label: 'Target Tahunan', roles: ['USER', 'MR'] },
     { path: '/monitoring', label: 'Monitoring', roles: ['FA', 'MR'] },
     { path: '/detail', label: 'Detail Idea', roles: null },
-    { path: '/laporan', label: 'Laporan', roles: ['MR'] }
+    { path: '/laporan', label: 'Laporan', roles: ['FA', 'MR'] }
   ];
 
   ngOnInit() {
@@ -45,9 +52,8 @@ export class ShellComponent implements OnInit {
   roleLabel(): string {
     const user = this.auth.user();
     if (!user) return '';
-    if (user.role === 'MR') return 'Manajer Regional';
     if (user.role === 'FA') return 'Financial Accounting';
-    const dept = this.departments().find((d) => d.id === user.departmentId);
-    return dept ? `Dept ${dept.name}` : 'User Departemen';
+    const name = user.departmentName || this.departments().find((d) => d.id === user.departmentId)?.name || '';
+    return name ? `Dept ${name}` : 'User Departemen';
   }
 }

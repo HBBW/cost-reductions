@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { query, t } from '../db/index.js';
 import { ah } from '../utils/http.js';
-import { requireAuth } from '../middlewares/auth.js';
+import { requireAuth, resolveScope, deptFilter } from '../middlewares/auth.js';
 import { monthlyDeadlineLabel } from '../utils/period.js';
 
 const router = Router();
@@ -21,15 +21,17 @@ router.get('/meta', requireAuth, ah(async (req, res) => {
     years,
     today: new Date().toISOString().slice(0, 10),
     deadline: {
-      monthlyInfo: 'Data bulan berjalan dapat diisi sampai tanggal 18 bulan berikutnya',
+      monthlyInfo: 'Data bulan berjalan dapat diisi sampai tanggal 19 bulan berikutnya',
       exampleLabel: monthlyDeadlineLabel(year, new Date().getMonth() + 1),
-      targetLabel: `18 Februari ${year}`
+      targetLabel: `19 Februari ${year}`
     }
   });
 }));
 
-router.get('/departments', requireAuth, ah(async (_req, res) => {
-  const rows = await query(`SELECT id, name FROM ${t('departments')} WHERE is_active = 1 ORDER BY name`);
+router.get('/departments', requireAuth, ah(async (req, res) => {
+  const scope = await resolveScope(req, null);
+  const deptF = deptFilter('id', scope.deptIds);
+  const rows = await query(`SELECT id, name FROM ${t('departments')} WHERE is_active = 1${deptF.sql} ORDER BY name`, deptF.params);
   res.json(rows.map((r) => ({ id: String(r.id), name: r.name })));
 }));
 
