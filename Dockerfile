@@ -8,7 +8,7 @@ WORKDIR /app/frontend
 RUN apk add --no-cache python3 make g++
 
 # Increase Node.js memory limit for Angular build
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NODE_OPTIONS="--max-old-space-size=8192"
 ENV NG_CLI_ANALYTICS=false
 
 # Copy package files first for better layer caching
