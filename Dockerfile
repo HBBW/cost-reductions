@@ -1,25 +1,6 @@
-# Multi-stage Dockerfile for CR Monitor - Fixed for Angular 17+
+# Multi-stage Dockerfile for CR Monitor - Pre-built frontend
 
-# Stage 1: Build Angular frontend
-FROM node:20-alpine AS frontend-build
-WORKDIR /app/frontend
-
-# Install build dependencies for native modules
-RUN apk add --no-cache python3 make g++
-
-# Conservative Node.js memory limit (2GB) - safer for container environments
-ENV NODE_OPTIONS="--max-old-space-size=2048"
-ENV NG_CLI_ANALYTICS=false
-
-# Copy package files first for better layer caching
-COPY frontend/package*.json ./
-RUN npm ci
-
-# Copy source code and build with memory optimization
-COPY frontend/ ./
-RUN npx ng build --configuration production --output-hashing=all
-
-# Stage 2: Production image with backend + built frontend
+# Stage 1: Production image with backend + pre-built frontend
 FROM node:20-alpine
 
 WORKDIR /app/backend
@@ -34,9 +15,8 @@ COPY backend/ ./
 # Remove test files that aren't needed
 RUN rm -f test-db.mjs verify.mjs test.csv test.xlsx
 
-# Copy built frontend from frontend-build stage
-# Angular 17+ with @angular/build:application outputs to dist/<project-name>/browser
-COPY --from=frontend-build /app/frontend/dist/cr-dashboard/browser ./dist/
+# Copy pre-built frontend (built locally)
+COPY frontend/dist/cr-dashboard/browser ./dist/
 
 EXPOSE 3000
 
