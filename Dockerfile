@@ -15,10 +15,11 @@ COPY backend/ ./
 # Remove test files that aren't needed
 RUN rm -f test-db.mjs verify.mjs test.csv test.xlsx
 
-# Copy pre-built frontend (built locally) to the expected location
-# Backend expects dist at /app/dist/cr-dashboard/browser (relative to /app/backend/src -> ../../../dist)
-RUN mkdir -p /app/dist/cr-dashboard/browser
-COPY frontend/dist/cr-dashboard/browser /app/dist/cr-dashboard/browser/
+# Copy pre-built frontend to the exact path backend expects
+# Backend resolves: path.resolve(__dirname, '../dist/cr-dashboard/browser') 
+# where __dirname = /app/backend/src, so it expects /app/backend/dist/cr-dashboard/browser
+RUN mkdir -p /app/backend/dist/cr-dashboard/browser
+COPY frontend/dist/cr-dashboard/browser /app/backend/dist/cr-dashboard/browser/
 
 EXPOSE 3000
 
