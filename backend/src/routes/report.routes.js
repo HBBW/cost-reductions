@@ -189,9 +189,6 @@ router.get('/report/export/excel', requireAuth, requireRole('FA', 'MR'), ah(asyn
       const deptNo = deptIdx + 1;
       const totalNo = globalTotalNo++;
 
-      deptTotalPotYr += idea.potentialCr;
-      deptTotalActYr += idea.actual;
-
       // Susun data 12 bulan
       const mData = Array.from({ length: 12 }, (_, mIdx) => {
         const monthObj = idea.months.find((m) => Number(m.month) === mIdx + 1);
@@ -203,6 +200,13 @@ router.get('/report/export/excel', requireAuth, requireRole('FA', 'MR'), ah(asyn
           hasData: !!monthObj
         };
       });
+
+      // Hitung jumlah bulan yang sudah diisi untuk idea ini
+      const filledMonthsCount = mData.filter(m => m.hasData).length;
+      const potentialCrPerYear = idea.potentialCr * filledMonthsCount;
+
+      deptTotalPotYr += potentialCrPerYear;
+      deptTotalActYr += idea.actual;
 
       // Akumulasi total bulanan departemen
       mData.forEach((m, idx) => {
@@ -224,7 +228,7 @@ router.get('/report/export/excel', requireAuth, requireRole('FA', 'MR'), ah(asyn
           sIdx === 0 ? totalNo : null,
           sIdx === 0 ? deptNo : null,
           sIdx === 0 ? idea.name : null,
-          sIdx === 0 ? idea.potentialCr : null,
+          sIdx === 0 ? potentialCrPerYear : null,
           sIdx === 0 ? idea.actual : null,
           sub.ctrl,
           ...mData.map((m) => m[sub.key])
@@ -348,12 +352,16 @@ router.get('/report/export/excel', requireAuth, requireRole('FA', 'MR'), ah(asyn
   ];
 
   for (const idea of ideas) {
+    const filledMonthsCount = idea.months.length;
+    const potentialCrPerYear = idea.potentialCr * filledMonthsCount;
+    const sisa = Math.round((potentialCrPerYear - idea.actual) * 100) / 100;
+
     ws2.addRow({
       dept: idea.departmentName,
       idea: idea.name,
-      pot: idea.potentialCr,
+      pot: potentialCrPerYear,
       acr: idea.actual,
-      sisa: Math.round((idea.potentialCr - idea.actual) * 100) / 100,
+      sisa: sisa,
       rem: idea.remark || ''
     });
   }
