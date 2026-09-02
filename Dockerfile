@@ -7,8 +7,14 @@ WORKDIR /app/frontend
 # Install build dependencies for native modules
 RUN apk add --no-cache python3 make g++
 
+# Create swap file to prevent OOM during build (2GB swap)
+RUN dd if=/dev/zero of=/swapfile bs=1M count=2048 && \
+    chmod 600 /swapfile && \
+    mkswap /swapfile && \
+    swapon /swapfile
+
 # Increase Node.js memory limit for Angular build
-ENV NODE_OPTIONS="--max-old-space-size=8192"
+ENV NODE_OPTIONS="--max-old-space-size=6144"
 ENV NG_CLI_ANALYTICS=false
 
 # Copy package files first for better layer caching
