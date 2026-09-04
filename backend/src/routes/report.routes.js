@@ -61,7 +61,7 @@ function csvEscape(v) {
   return `"${s.replace(/"/g, '""')}"`;
 }
 
-router.get('/report/export/csv', requireAuth, requireRole('FA', 'MR'), ah(async (req, res) => {
+router.get('/report/export/csv', requireAuth, requireRole('FA', 'FA_READONLY', 'FA_INPUT', 'MR'), ah(async (req, res) => {
   const year = Number(req.query.year) || new Date().getFullYear();
   const scope = await resolveScope(req, req.query.department_id);
   const ideas = await fetchDetail(year, scope.deptIds);
@@ -85,7 +85,7 @@ router.get('/report/export/csv', requireAuth, requireRole('FA', 'MR'), ah(async 
   res.send(csv);
 }));
 
-router.get('/report/export/excel', requireAuth, requireRole('FA', 'MR'), ah(async (req, res) => {
+router.get('/report/export/excel', requireAuth, requireRole('FA', 'FA_READONLY', 'FA_INPUT', 'MR'), ah(async (req, res) => {
   const year = Number(req.query.year) || new Date().getFullYear();
   const scope = await resolveScope(req, req.query.department_id);
   const ideas = await fetchDetail(year, scope.deptIds);

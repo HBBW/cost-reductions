@@ -2,7 +2,7 @@ export interface User {
   id: number;
   username: string;
   name: string;
-  role: 'USER' | 'FA' | 'MR';
+  role: 'USER' | 'FA' | 'FA_READONLY' | 'FA_INPUT' | 'MR';
   departmentId?: string | null;
   departmentName?: string | null;
 }

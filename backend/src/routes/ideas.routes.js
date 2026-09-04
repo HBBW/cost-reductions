@@ -70,12 +70,12 @@ router.get('/ideas', requireAuth, ah(async (req, res) => {
 }));
 
 /* ---------- Create idea ---------- */
-router.post('/ideas', requireAuth, requireRole('USER', 'MR'), ah(async (req, res) => {
+router.post('/ideas', requireAuth, requireRole('USER', 'FA_INPUT', 'MR'), ah(async (req, res) => {
   const body = req.body || {};
   const year = Number(body.year) || new Date().getFullYear();
   if (year < 2000 || year > 2100) throw new ApiError(400, 'Tahun tidak valid');
 
-  let departmentId = req.user.role === 'USER'
+  let departmentId = (req.user.role === 'USER' || req.user.role === 'FA_INPUT')
     ? req.user.departmentId
     : (body.department_id != null ? String(body.department_id).trim() : '');
   if (!departmentId) throw new ApiError(400, 'Departemen wajib dipilih');
@@ -99,7 +99,7 @@ router.post('/ideas', requireAuth, requireRole('USER', 'MR'), ah(async (req, res
 }));
 
 /* ---------- Update idea (meta) ---------- */
-router.put('/ideas/:id', requireAuth, requireRole('USER', 'MR'), ah(async (req, res) => {
+router.put('/ideas/:id', requireAuth, requireRole('USER', 'FA_INPUT', 'MR'), ah(async (req, res) => {
   const idea = await getIdeaOr404(req.params.id);
   await assertCanAccessAsync(req, idea);
 
@@ -198,7 +198,7 @@ router.get('/ideas/:id/monthly', requireAuth, ah(async (req, res) => {
 }));
 
 /* Simpan data bulanan - user isi budget & actual_cost per bulan, potential dari idea level */
-router.put('/ideas/:id/monthly', requireAuth, requireRole('USER', 'MR'), ah(async (req, res) => {
+router.put('/ideas/:id/monthly', requireAuth, requireRole('USER', 'FA_INPUT', 'MR'), ah(async (req, res) => {
   const idea = await getIdeaOr404(req.params.id);
   await assertCanAccessAsync(req, idea);
   const year = Number(idea.year);

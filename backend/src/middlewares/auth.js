@@ -53,7 +53,7 @@ export async function resolveScope(req, requestedDeptId) {
   const role = req.user ? req.user.role : 'FA';
   const reqId = requestedDeptId ? String(requestedDeptId).trim() : null;
 
-  if (role === 'USER') {
+  if (role === 'USER' || role === 'FA_INPUT') {
     if (!req.user.departmentId) throw new ApiError(403, 'Akun Anda belum terhubung ke departemen');
     return { deptIds: [req.user.departmentId] };
   }

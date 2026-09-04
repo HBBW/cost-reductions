@@ -26,12 +26,12 @@ router.get('/', requireAuth, ah(async (req, res) => {
 }));
 
 /* Simpan target tahunan satu departemen: { department_id, rows: [{month, amount}] } */
-router.put('/:year/:departmentId', requireAuth, requireRole('USER', 'MR'), ah(async (req, res) => {
+router.put('/:year/:departmentId', requireAuth, requireRole('USER', 'FA_INPUT', 'MR'), ah(async (req, res) => {
   const year = Number(req.params.year);
   if (year < 2000 || year > 2100) throw new ApiError(400, 'Tahun tidak valid');
 
   let departmentId = req.params.departmentId ? String(req.params.departmentId).trim() : '';
-  if (req.user.role === 'USER') {
+  if (req.user.role === 'USER' || req.user.role === 'FA_INPUT') {
     if (!req.user.departmentId) throw new ApiError(403, 'Akun Anda belum terhubung ke departemen');
     departmentId = req.user.departmentId;
   }

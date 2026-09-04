@@ -31,11 +31,11 @@ export class ShellComponent implements OnInit {
 
   readonly navItems: NavItem[] = [
     { path: '/dashboard', label: 'Dashboard', roles: null },
-    { path: '/input', label: 'Input Data', roles: ['USER', 'MR'] },
-    { path: '/targets', label: 'Target Tahunan', roles: ['USER', 'MR'] },
-    { path: '/monitoring', label: 'Monitoring', roles: ['FA', 'MR'] },
+    { path: '/input', label: 'Input Data', roles: ['USER', 'FA_INPUT', 'MR'] },
+    { path: '/targets', label: 'Target Tahunan', roles: ['USER', 'FA_INPUT', 'MR'] },
+    { path: '/monitoring', label: 'Monitoring', roles: ['FA', 'FA_READONLY', 'FA_INPUT', 'MR'] },
     { path: '/detail', label: 'Detail Idea', roles: null },
-    { path: '/laporan', label: 'Laporan', roles: ['FA', 'MR'] }
+    { path: '/laporan', label: 'Laporan', roles: ['FA', 'FA_READONLY', 'FA_INPUT', 'MR'] }
   ];
 
   ngOnInit() {

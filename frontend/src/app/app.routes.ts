@@ -19,19 +19,19 @@ export const routes: Routes = [
       },
       {
         path: 'input',
-        canActivate: [roleGuard('USER', 'MR')],
+        canActivate: [roleGuard('USER', 'FA_INPUT', 'MR')],
         loadComponent: () => import('./features/input/input.page').then((m) => m.InputPage),
         title: 'Input Data — CR Monitor'
       },
       {
         path: 'targets',
-        canActivate: [roleGuard('USER', 'MR')],
+        canActivate: [roleGuard('USER', 'FA_INPUT', 'MR')],
         loadComponent: () => import('./features/targets/targets.page').then((m) => m.TargetsPage),
         title: 'Target Tahunan — CR Monitor'
       },
       {
         path: 'monitoring',
-        canActivate: [roleGuard('FA', 'MR')],
+        canActivate: [roleGuard('FA', 'FA_READONLY', 'FA_INPUT', 'MR')],
         loadComponent: () => import('./features/monitoring/monitoring.page').then((m) => m.MonitoringPage),
         title: 'Monitoring Status — CR Monitor'
       },
@@ -42,7 +42,7 @@ export const routes: Routes = [
       },
       {
         path: 'laporan',
-        canActivate: [roleGuard('FA', 'MR')],
+        canActivate: [roleGuard('FA', 'FA_READONLY', 'FA_INPUT', 'MR')],
         loadComponent: () => import('./features/laporan/laporan.page').then((m) => m.LaporanPage),
         title: 'Laporan — CR Monitor'
       }
