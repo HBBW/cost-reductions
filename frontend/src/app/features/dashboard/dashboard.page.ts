@@ -56,6 +56,16 @@ export class DashboardPage implements OnInit {
     return `${this.data()?.totals.ideasCount ?? 0} idea terdaftar`;
   }
 
+  isUser = computed(() => this.auth.user()?.role === 'USER');
+
+  rekapTitle(): string {
+    if (this.isUser()) {
+      const name = this.auth.user()?.departmentName;
+      return name ? `Rekap Departemen Anda — ${name}` : 'Rekap Departemen Anda';
+    }
+    return 'Rekap per Departemen';
+  }
+
   achievementTone(): 'default' | 'positive' | 'negative' {
     const p = this.data()?.totals.achievementPct;
     if (p == null) return 'default';

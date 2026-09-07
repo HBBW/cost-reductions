@@ -15,29 +15,34 @@ router.get('/dashboard/summary', requireAuth, ah(async (req, res) => {
   const scope = await resolveScope(req, req.query.department_id);
   const deptF = deptFilter('d.id', scope.deptIds);
 
+  console.log('DEBUG dashboard/summary:', { year, scope, deptF, user: req.user });
+
   let sql = `
     SELECT d.id AS department_id, d.name AS department_name,
-           COALESCE(idea_agg.potential, 0) AS potential,
-           COALESCE(idea_agg.budget_total, 0) AS budget_total,
+           COALESCE(pm_dept.potential_total, 0) AS potential,
            COALESCE(idea_agg.ideas_count, 0) AS ideas_count,
-           COALESCE(month_agg.actual_cost_total, 0) AS actual_cost_total,
            COALESCE(month_agg.budget_monthly_total, 0) AS budget_monthly_total,
+           COALESCE(month_agg.actual_cost_total, 0) AS actual_cost_total,
            COALESCE(month_agg.actual_cr, 0) AS actual_cr
     FROM ${t('departments')} d
     LEFT JOIN (
-      SELECT i.department_id,
-             SUM(i.potential_cr) AS potential,
-             SUM(i.budget) AS budget_total,
-             COUNT(DISTINCT i.id) AS ideas_count
+      SELECT i.department_id, COUNT(DISTINCT i.id) AS ideas_count
       FROM ${t('ideas')} i
       WHERE i.year = ?
       GROUP BY i.department_id
     ) idea_agg ON idea_agg.department_id = d.id
     LEFT JOIN (
+      SELECT i.department_id, SUM(pm.potential_amount) AS potential_total
+      FROM ${t('idea_potential_monthly')} pm
+      JOIN ${t('ideas')} i ON i.id = pm.idea_id
+      WHERE i.year = ?
+      GROUP BY i.department_id
+    ) pm_dept ON pm_dept.department_id = d.id
+    LEFT JOIN (
       SELECT i.department_id,
-             COALESCE(SUM(im.actual_cost), 0) AS actual_cost_total,
-             COALESCE(SUM(im.budget), 0) AS budget_monthly_total,
-             COALESCE(SUM(im.budget - im.actual_cost), 0) AS actual_cr
+             COALESCE(SUM(im.budget),0) AS budget_monthly_total,
+             COALESCE(SUM(im.actual_cost),0) AS actual_cost_total,
+             COALESCE(SUM(im.budget - im.actual_cost),0) AS actual_cr
       FROM ${t('idea_monthly')} im
       JOIN ${t('ideas')} i ON i.id = im.idea_id
       WHERE i.year = ?
@@ -46,8 +51,12 @@ router.get('/dashboard/summary', requireAuth, ah(async (req, res) => {
     WHERE d.is_active = 1${deptF.sql}
     ORDER BY d.name`;
 
-  const params = [year, ...deptF.params, year];
+  console.log('DEBUG SQL params:', { year, deptF, params: [year, year, year, ...deptF.params] });
+
+  const params = [year, year, year, ...deptF.params];
   const rows = await query(sql, params);
+
+  console.log('DEBUG rows:', rows);
 
   const tgtF = deptFilter('department_id', scope.deptIds);
   const tgtRows = await query(
@@ -58,18 +67,15 @@ router.get('/dashboard/summary', requireAuth, ah(async (req, res) => {
 
   const departments = rows.map((r) => {
     const potential = Number(r.potential);
-    const budgetTotal = Number(r.budget_total);
-    const actualCostTotal = Number(r.actual_cost_total);
-    const monthBudgetTotal = Number(r.budget_monthly_total);
     const actual = Number(r.actual_cr);
     const deptId = String(r.department_id);
     return {
       departmentId: deptId,
       departmentName: r.department_name,
       ideasCount: Number(r.ideas_count),
-      budget: monthBudgetTotal || budgetTotal,
+      budget: Number(r.budget_monthly_total),
       potential,
-      actualCost: actualCostTotal,
+      actualCost: Number(r.actual_cost_total),
       actual,
       remaining: Math.round((actual - potential) * 100) / 100,
       achievementPct: potential > 0 ? Math.round((actual / potential) * 1000) / 10 : null,
@@ -90,6 +96,8 @@ router.get('/dashboard/summary', requireAuth, ah(async (req, res) => {
     { budget: 0, potential: 0, actualCost: 0, actual: 0, remaining: 0, target: 0, ideasCount: 0 }
   );
   totals.achievementPct = totals.potential > 0 ? Math.round((totals.actual / totals.potential) * 1000) / 10 : null;
+
+  console.log('DEBUG response:', { totals, departments });
 
   res.json({ year, totals, departments });
 }));

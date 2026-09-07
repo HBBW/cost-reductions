@@ -65,13 +65,13 @@
 
   <!-- Rekap departemen -->
   <section class="fade-up d2">
-    <h2 class="mb-4 font-display text-base font-semibold tracking-tight text-ink">Rekap per Departemen</h2>
+    <h2 class="mb-4 font-display text-base font-semibold tracking-tight text-ink">{{ rekapTitle() }}</h2>
 
     <div class="overflow-x-auto">
       <table class="min-w-full text-sm">
         <thead>
           <tr class="border-y border-hairline text-left">
-            <th class="mlabel px-3 py-2.5 font-medium first:pl-0">Departemen</th>
+            <th class="mlabel px-3 py-2.5 font-medium first:pl-0">{{ isUser() ? 'Departemen Anda' : 'Departemen' }}</th>
             <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Potential CR / Tahun</th>
             <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Actual CR / Tahun</th>
             <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Sisa Potential / Tahun</th>

@@ -11,13 +11,15 @@ async function fetchDetail(year, deptIds) {
   const params = [year, ...deptFilter('i.department_id', deptIds).params];
   let sql = `
     SELECT d.name AS department_name, i.id AS idea_id, i.name AS idea_name,
-           i.potential_cr, i.remark,
-           im.month, im.budget, im.actual_cost
+           i.remark,
+           im.month, im.budget, im.actual_cost,
+           pm.potential_amount
     FROM ${t('ideas')} i
     JOIN ${t('departments')} d ON d.id = i.department_id
     LEFT JOIN ${t('idea_monthly')} im ON im.idea_id = i.id
+    LEFT JOIN ${t('idea_potential_monthly')} pm ON pm.idea_id = i.id AND pm.month = im.month
     WHERE i.year = ?${deptFilter('i.department_id', deptIds).sql}`;
-  sql += ' ORDER BY d.name, i.name, im.month';
+  sql += ' ORDER BY d.name, i.id, im.month';
 
   const rows = await query(sql, params);
   const ideasMap = new Map();
@@ -28,9 +30,9 @@ async function fetchDetail(year, deptIds) {
         departmentName: r.department_name,
         name: r.idea_name,
         remark: r.remark,
-        potentialCr: Number(r.potential_cr),
         months: [],
-        actual: 0
+        actual: 0,
+        potentialTotal: 0
       });
     }
     const idea = ideasMap.get(id);
@@ -38,14 +40,15 @@ async function fetchDetail(year, deptIds) {
       const budget = Number(r.budget);
       const cost = Number(r.actual_cost);
       const actualCr = Math.round((budget - cost) * 100) / 100;
-      idea.months.push({ month: Number(r.month), potential: idea.potentialCr, budget, actualCost: cost, actualCr });
+      const potentialCr = r.potential_amount != null ? Math.round(Number(r.potential_amount) * 100) / 100 : 0;
+      idea.months.push({ month: Number(r.month), potential: potentialCr, budget, actualCost: cost, actualCr });
       idea.actual += actualCr;
+      idea.potentialTotal += potentialCr;
     }
   }
   return [...ideasMap.values()].map((i) => ({
     ...i,
-    // Potential YTD = potential per bulan × jumlah bulan terisi, sejajar dengan actual (sum bulan terisi)
-    potential: Math.round((i.potentialCr * i.months.length) * 100) / 100,
+    potential: Math.round(i.potentialTotal * 100) / 100,
     actual: Math.round(i.actual * 100) / 100
   }));
 }

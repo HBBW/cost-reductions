@@ -19,5 +19,8 @@
     "jsonwebtoken": "^9.0.2",
     "mssql": "^11.0.1",
     "mysql2": "^3.14.3"
+  },
+  "devDependencies": {
+    "node-fetch": "^3.3.2"
   }
 }
