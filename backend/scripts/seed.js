@@ -66,6 +66,16 @@ const MYSQL_DDL = [
     updated_at DATETIME NOT NULL,
     UNIQUE KEY uq_target (year, department_id, month),
     CONSTRAINT fk_tgt_dept FOREIGN KEY (department_id) REFERENCES departments(id)
+  ) ENGINE=InnoDB`,
+  `CREATE TABLE IF NOT EXISTS idea_potential_monthly (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    idea_id INT NOT NULL,
+    month TINYINT NOT NULL,
+    potential_amount DECIMAL(18,2) NOT NULL DEFAULT 0,
+    updated_by INT NULL,
+    updated_at DATETIME NOT NULL,
+    UNIQUE KEY uq_idea_potential (idea_id, month),
+    CONSTRAINT fk_pot_idea FOREIGN KEY (idea_id) REFERENCES ideas(id) ON DELETE CASCADE
   ) ENGINE=InnoDB`
 ];
 
@@ -84,7 +94,8 @@ const MSSQL_OBJECTS = {
     `${P}user_roles`,
     `${P}ideas`,
     `${P}idea_monthly`,
-    `${P}department_targets`
+    `${P}department_targets`,
+    `${P}idea_potential_monthly`
   ],
   views: [`${P}users`, `${P}departments`],
   requiredExisting: ['hris_Employee', 'MASCOSTCENTER']
@@ -127,7 +138,15 @@ const MSSQL_TABLE_DDL = {
     target_amount DECIMAL(18,2) NOT NULL DEFAULT 0,
     updated_by INT NULL,
     updated_at DATETIME NOT NULL DEFAULT GETDATE(),
-    CONSTRAINT ${P ? P.replace(/_/g, '') : 'CR'}_uq_target UNIQUE (year, department_id, month))`
+    CONSTRAINT ${P ? P.replace(/_/g, '') : 'CR'}_uq_target UNIQUE (year, department_id, month))`,
+  [`${P}idea_potential_monthly`]: `IF OBJECT_ID('dbo.${P}idea_potential_monthly','U') IS NULL CREATE TABLE dbo.${P}idea_potential_monthly (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    idea_id INT NOT NULL,
+    month TINYINT NOT NULL,
+    potential_amount DECIMAL(18,2) NOT NULL DEFAULT 0,
+    updated_by INT NULL,
+    updated_at DATETIME NOT NULL DEFAULT GETDATE(),
+    CONSTRAINT ${P ? P.replace(/_/g, '') : 'CR'}_uq_idea_potential UNIQUE (idea_id, month))`
 };
 
 const MSSQL_VIEW_DDL = {

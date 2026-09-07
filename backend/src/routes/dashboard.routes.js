@@ -19,24 +19,34 @@ router.get('/dashboard/summary', requireAuth, ah(async (req, res) => {
     SELECT d.id AS department_id, d.name AS department_name,
            COALESCE(idea_agg.potential, 0) AS potential,
            COALESCE(idea_agg.budget_total, 0) AS budget_total,
-           COALESCE(idea_agg.actual_cost_total, 0) AS actual_cost_total,
-           COALESCE(idea_agg.ideas_count, 0) AS ideas_count
+           COALESCE(idea_agg.ideas_count, 0) AS ideas_count,
+           COALESCE(month_agg.actual_cost_total, 0) AS actual_cost_total,
+           COALESCE(month_agg.budget_monthly_total, 0) AS budget_monthly_total,
+           COALESCE(month_agg.actual_cr, 0) AS actual_cr
     FROM ${t('departments')} d
     LEFT JOIN (
       SELECT i.department_id,
              SUM(i.potential_cr) AS potential,
              SUM(i.budget) AS budget_total,
-             COALESCE(SUM(im.actual_cost), 0) AS actual_cost_total,
              COUNT(DISTINCT i.id) AS ideas_count
       FROM ${t('ideas')} i
-      LEFT JOIN ${t('idea_monthly')} im ON im.idea_id = i.id
       WHERE i.year = ?
       GROUP BY i.department_id
     ) idea_agg ON idea_agg.department_id = d.id
+    LEFT JOIN (
+      SELECT i.department_id,
+             COALESCE(SUM(im.actual_cost), 0) AS actual_cost_total,
+             COALESCE(SUM(im.budget), 0) AS budget_monthly_total,
+             COALESCE(SUM(im.budget - im.actual_cost), 0) AS actual_cr
+      FROM ${t('idea_monthly')} im
+      JOIN ${t('ideas')} i ON i.id = im.idea_id
+      WHERE i.year = ?
+      GROUP BY i.department_id
+    ) month_agg ON month_agg.department_id = d.id
     WHERE d.is_active = 1${deptF.sql}
     ORDER BY d.name`;
 
-  const params = [year, ...deptF.params];
+  const params = [year, ...deptF.params, year];
   const rows = await query(sql, params);
 
   const tgtF = deptFilter('department_id', scope.deptIds);
@@ -50,13 +60,14 @@ router.get('/dashboard/summary', requireAuth, ah(async (req, res) => {
     const potential = Number(r.potential);
     const budgetTotal = Number(r.budget_total);
     const actualCostTotal = Number(r.actual_cost_total);
-    const actual = budgetTotal - actualCostTotal;
+    const monthBudgetTotal = Number(r.budget_monthly_total);
+    const actual = Number(r.actual_cr);
     const deptId = String(r.department_id);
     return {
       departmentId: deptId,
       departmentName: r.department_name,
       ideasCount: Number(r.ideas_count),
-      budget: budgetTotal,
+      budget: monthBudgetTotal || budgetTotal,
       potential,
       actualCost: actualCostTotal,
       actual,

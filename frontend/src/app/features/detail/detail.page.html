@@ -77,21 +77,21 @@
                         <p class="mlabel mb-2">Rincian 12 Bulan</p>
                         <table class="min-w-full text-xs">
                           <thead>
-                            <tr class="text-left">
-                              <th class="py-1 pr-4 font-medium text-muted">Bulan</th>
-                              <th class="px-3 py-1 text-right font-medium text-muted">Potential CR</th>
-                              <th class="px-3 py-1 text-right font-medium text-muted">Budget</th>
-                              <th class="px-3 py-1 text-right font-medium text-muted">Actual Biaya</th>
+                            <tr class="border-b-[3px] border-double border-ink text-left">
+                              <th class="border-r border-hairline py-1 pr-3 font-medium text-muted">Bulan</th>
+                              <th class="border-r border-hairline px-3 py-1 text-right font-medium text-muted">Budget</th>
+                              <th class="border-r border-hairline px-3 py-1 text-right font-medium text-muted">Actual Biaya</th>
+                              <th class="border-r border-hairline px-3 py-1 text-right font-medium text-muted">Potential CR</th>
                               <th class="px-3 py-1 text-right font-medium text-muted">Actual CR</th>
                             </tr>
                           </thead>
                           <tbody>
                             @for (m of idea.months; track m.month; let last = $last) {
-                              <tr class="{{ last ? 'rule-double font-semibold' : '' }}">
-                                <td class="py-1 pr-4 whitespace-nowrap text-ink-soft">{{ monthName(m.month) }}</td>
-                                <td class="tnum px-3 py-1 text-right text-muted">{{ fmt(m.potential) }}</td>
-                                <td class="tnum px-3 py-1 text-right text-muted">{{ fmt(m.budget) }}</td>
-                                <td class="tnum px-3 py-1 text-right text-muted">{{ fmt(m.actualCost) }}</td>
+                              <tr class="{{ last ? 'font-semibold' : 'border-b border-hairline' }}">
+                                <td class="border-r border-hairline py-1 pr-3 whitespace-nowrap text-ink-soft">{{ monthName(m.month) }}</td>
+                                <td class="border-r border-hairline tnum px-3 py-1 text-right text-muted">{{ fmt(m.budget) }}</td>
+                                <td class="border-r border-hairline tnum px-3 py-1 text-right text-muted">{{ fmt(m.actualCost) }}</td>
+                                <td class="border-r border-hairline tnum px-3 py-1 text-right text-muted">{{ fmt(m.potential) }}</td>
                                 <td class="tnum table-cell-num px-3 py-1 font-semibold"
                                     [class.text-forest]="m.actualCr >= 0"
                                     [class.text-rust]="m.actualCr < 0">{{ fmt(m.actualCr) }}</td>

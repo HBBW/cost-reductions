@@ -36,5 +36,8 @@ export class AuthService {
 }
 
 export function httpError(err: HttpErrorResponse): string {
-  return err.error?.message || `Terjadi kesalahan (${err.status})`;
+  if (err.status === 401) return 'Username atau password salah';
+  const body = err.error as { message?: string } | string | null | undefined;
+  if (body && typeof body === 'object' && body.message) return body.message;
+  return err.status ? `Terjadi kesalahan (${err.status})` : 'Terjadi kesalahan, coba lagi';
 }

@@ -134,7 +134,7 @@
                           @if (isCellDirty(i, 'budget')) { <span class="absolute top-1/2 -left-0.5 -translate-y-1/2 h-5 w-[3px] rounded-full bg-amber-500"></span> }
                           <input type="text" inputmode="decimal" autocomplete="off"
                                  class="cell-input {{ exceedsTarget(r, 'budget') ? 'cell-warning' : '' }}"
-                                 [value]="fmtCell(r.budget)"
+                                 [value]="fmtCell(r, 'budget')"
                                  [disabled]="!editable(r)"
                                  [attr.data-row]="i" data-col="0"
                                  [title]="exceedsTarget(r, 'budget') ? 'Melebihi target potential CR per bulan (' + rupiahFmt.format(potentialPerMonth()) + ')' : ''"
@@ -149,7 +149,7 @@
                           @if (isCellDirty(i, 'actualCost')) { <span class="absolute top-1/2 -left-0.5 -translate-y-1/2 h-5 w-[3px] rounded-full bg-amber-500"></span> }
                           <input type="text" inputmode="decimal" autocomplete="off"
                                  class="cell-input {{ exceedsTarget(r, 'actualCost') ? 'cell-warning' : '' }}"
-                                 [value]="fmtCell(r.actualCost)"
+                                 [value]="fmtCell(r, 'actualCost')"
                                  [disabled]="!editable(r)"
                                  [attr.data-row]="i" data-col="1"
                                  [title]="exceedsTarget(r, 'actualCost') ? 'Melebihi target potential CR per bulan (' + rupiahFmt.format(potentialPerMonth()) + ')' : ''"
@@ -161,7 +161,7 @@
                           }
                         </td>
                         <td class="px-3 py-0.5">
-                          <span class="tnum inline-block w-32 rounded-md bg-slate-50 px-2 py-1.5 text-right text-sm text-faint">{{ fmtCell(r.potentialCr) }}</span>
+                          <span class="tnum inline-block w-32 rounded-md bg-slate-50 px-2 py-1.5 text-right text-sm text-faint">{{ fmtCell(r, 'potentialCr') }}</span>
                         </td>
                         <td class="table-cell-num px-3 py-0.5 font-semibold"
                             [class.text-forest]="rowActualCr(r) >= 0"

@@ -43,16 +43,23 @@ router.get('/ideas', requireAuth, ah(async (req, res) => {
 
   let sql = `
     SELECT i.id, i.year, i.department_id, d.name AS department_name, i.name,
-           i.budget, i.potential_cr, i.remark,
+           i.remark,
+           COALESCE(pm.potential_total, 0) AS potential_cr,
+           COALESCE(SUM(im.budget), 0) AS budget,
            COALESCE(SUM(im.budget - im.actual_cost), 0) AS actual,
-           COALESCE(COUNT(im.month), 0) AS months_filled
+           COALESCE(SUM(CASE WHEN im.budget <> 0 OR im.actual_cost <> 0 THEN 1 ELSE 0 END), 0) AS months_filled
     FROM ${t('ideas')} i
     JOIN ${t('departments')} d ON d.id = i.department_id
     LEFT JOIN ${t('idea_monthly')} im ON im.idea_id = i.id
+    LEFT JOIN (
+      SELECT idea_id, SUM(potential_amount) AS potential_total
+      FROM ${t('idea_potential_monthly')}
+      GROUP BY idea_id
+    ) pm ON pm.idea_id = i.id
     WHERE i.year = ?${deptF.sql}`;
   const params = [year, ...deptF.params];
-  sql += ' GROUP BY i.id, i.year, i.department_id, d.name, i.name, i.budget, i.potential_cr, i.remark';
-  sql += ' ORDER BY d.name, i.name';
+  sql += ' GROUP BY i.id, i.year, i.department_id, d.name, i.name, i.remark, pm.potential_total';
+  sql += ' ORDER BY d.name, i.id';
 
   const rows = await query(sql, params);
   res.json(rows.map((r) => ({
@@ -146,10 +153,17 @@ router.get('/ideas/:id/monthly', requireAuth, ah(async (req, res) => {
   await assertCanAccessAsync(req, idea);
 
   const rows = await query(
-    `SELECT month, budget, actual_cost, updated_at FROM ${t('idea_monthly')} WHERE idea_id = ? ORDER BY month`,
+    `SELECT month, potential_cr, budget, actual_cost, updated_at FROM ${t('idea_monthly')} WHERE idea_id = ? ORDER BY month`,
     [idea.id]
   );
   const byMonth = new Map(rows.map((r) => [Number(r.month), r]));
+
+  // Potential CR per bulan dari Target Tahunan (idea_potential_monthly)
+  const potRows = await query(
+    `SELECT month, potential_amount FROM ${t('idea_potential_monthly')} WHERE idea_id = ?`,
+    [idea.id]
+  );
+  const potByMonth = new Map(potRows.map((r) => [Number(r.month), Number(r.potential_amount)]));
 
   const ideaBudget = Number(idea.budget);
   const ideaPotentialCr = Number(idea.potential_cr);
@@ -158,11 +172,13 @@ router.get('/ideas/:id/monthly', requireAuth, ah(async (req, res) => {
   for (let m = 1; m <= 12; m++) {
     const r = byMonth.get(m);
     const cost = r ? Number(r.actual_cost) : 0;
-    // Budget per bulan: pakai nilai bulanan jika sudah diisi, default Budget/Tahun
-    const budget = r ? Number(r.budget) : ideaBudget;
+    // Budget per bulan: hanya nilai yang benar-benar diisi; bulan kosong = 0
+    const budget = r ? Number(r.budget) : 0;
+    // Potential per bulan: hanya dari Target Tahunan yang diisi; bulan kosong = 0
+    const potentialCr = potByMonth.has(m) ? Math.round(potByMonth.get(m) * 100) / 100 : 0;
     months.push({
       month: m,
-      potentialCr: ideaPotentialCr,
+      potentialCr,
       budget,
       actualCost: cost,
       actualCr: Math.round((budget - cost) * 100) / 100,
@@ -227,7 +243,8 @@ router.put('/ideas/:id/monthly', requireAuth, requireRole('USER', 'FA_INPUT', 'M
            WHERE id = ?`,
           [ideaPotentialCr, row.budget, row.actualCost, req.user.id, new Date(), Number(existing[0].id)]
         );
-      } else {
+      } else if (row.budget !== 0 || row.actualCost !== 0) {
+        // Jangan buat baris kosong (budget & actual keduanya 0)
         await r(
           `INSERT INTO ${t('idea_monthly')} (idea_id, month, potential_cr, budget, actual_cost, updated_by, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,

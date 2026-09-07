@@ -15,6 +15,8 @@ interface EditableRow {
   budget: number;
   actualCost: number;
   open: boolean;
+  /** Row pernah diisi/simpan (agar nilai 0 tetap ditampilkan). */
+  filled: boolean;
 }
 
 const FIELDS = ['budget', 'actualCost'] as const;
@@ -60,6 +62,8 @@ export class InputPage implements OnInit {
   rows = signal<EditableRow[]>([]);
   baseline = signal<EditableRow[]>([]);
   savingMonthly = signal(false);
+  /** Set sel yang pernah diketik user ("${i}-${field}") — agar nilai 0 tetap ikut disimpan. */
+  private touched = signal<Set<string>>(new Set());
 
   /* Modal tambah/edit idea */
   modalOpen = signal(false);
@@ -93,14 +97,16 @@ export class InputPage implements OnInit {
     return !this.isMR && rows.length > 0 && rows.every((r) => !r.open);
   });
 
-  /** Jumlah sel yang berbeda dari baseline. */
+  /** Jumlah sel yang berbeda dari baseline atau yang disentuh (agar boleh simpan 0). */
   dirtyCount = computed(() => {
     const rows = this.rows();
     const base = this.baseline();
+    const touchedSet = this.touched();
     let n = 0;
     for (let i = 0; i < rows.length; i++) {
       for (const f of FIELDS) {
         if (rows[i]?.[f] !== base[i]?.[f]) n++;
+        else if (touchedSet.has(`${i}-${f}`)) n++;
       }
     }
     return n;
@@ -239,10 +245,12 @@ export class InputPage implements OnInit {
         potentialCr: m.potentialCr,
         budget: m.budget,
         actualCost: m.actualCost,
-        open: resp.lockedMonths[i]?.open ?? false
+        open: resp.lockedMonths[i]?.open ?? false,
+        filled: m.filled
       }));
       this.rows.set(editable);
       this.baseline.set(editable.map((r) => ({ ...r })));
+      this.touched.set(new Set());
     } catch (err) {
       this.error.set(httpError(err as never));
     }
@@ -259,10 +267,12 @@ export class InputPage implements OnInit {
     this.monthly.set(null);
     this.rows.set([]);
     this.baseline.set([]);
+    this.touched.set(new Set());
   }
 
   revertRows() {
     this.rows.set(this.baseline().map((r) => ({ ...r })));
+    this.touched.set(new Set());
   }
 
   rowActualCr(r: EditableRow): number {
@@ -299,24 +309,30 @@ export class InputPage implements OnInit {
 
   onCell(index: number, field: Field, ev: Event) {
     const el = ev.target as HTMLInputElement;
+    const raw = (el.value || '').trim();
     const v = parseRupiahInput(el.value);
     this.rows.update((rows) => rows.map((r, i) => (i === index ? { ...r, [field]: v } : r)));
-    // tampilkan dengan pemisah ribuan agar tidak salah hitung nol
-    el.value = v === 0 ? '' : rupiahFmt.format(v);
+    this.touched.update((s) => { const next = new Set(s); next.add(`${index}-${field}`); return next; });
+    // Tampilkan "0" bila memang diketik nol; biarkan kosong bila input dikosongkan
+    el.value = raw === '' ? '' : rupiahFmt.format(v);
   }
 
-  /** Nilai sel input dalam format ribuan ("90.000.000"). */
-  fmtCell(v: number | null | undefined): string {
-    return v ? rupiahFmt.format(v) : '';
+  /** Nilai sel input dalam format ribuan; tampilkan "0" bila bulan sudah terisi. */
+  fmtCell(r: EditableRow, field: 'budget' | 'actualCost' | 'potentialCr'): string {
+    const v = r[field];
+    if (v == null || Number.isNaN(v)) return '';
+    if (v === 0) return r.filled ? rupiahFmt.format(v) : '';
+    return rupiahFmt.format(v);
   }
 
-  /** Payload hanya sel yang benar-benar berubah & boleh diedit. */
+  /** Payload sel yang berubah ATAU pernah diketik (agar 0 terkirim & bulan jadi terisi). */
   private changedPayload() {
     const base = this.baseline();
+    const touchedSet = this.touched();
     return this.rows()
       .map((r, i) => ({
         month: r.month,
-        include: this.editable(r) && FIELDS.some((f) => r[f] !== base[i]?.[f]),
+        include: this.editable(r) && FIELDS.some((f) => r[f] !== base[i]?.[f] || touchedSet.has(`${i}-${f}`)),
         values: { budget: r.budget, actualCost: r.actualCost }
       }))
       .filter((x) => x.include)
@@ -350,10 +366,12 @@ export class InputPage implements OnInit {
         potentialCr: m.potentialCr,
         budget: m.budget,
         actualCost: m.actualCost,
-        open: resp.lockedMonths[i]?.open ?? false
+        open: resp.lockedMonths[i]?.open ?? false,
+        filled: m.filled
       }));
       this.rows.set(editable);
       this.baseline.set(editable.map((r) => ({ ...r })));
+      this.touched.set(new Set());
     } catch { /* biarkan state lama */ }
   }
 

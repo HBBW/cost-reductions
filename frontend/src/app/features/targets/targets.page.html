@@ -1,21 +1,27 @@
 <div class="space-y-7">
-  <app-page-header title="Target Tahunan" subtitle="Isi Budget & Potential CR per idea. Terkunci setelah 19 Februari." />
-
-  <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
-    <app-year-select [year]="year()" [years]="years()" (yearChange)="setYear($event)" />
-    @if (isMR) {
-      <label class="flex items-center gap-2 text-sm text-muted">
-        Departemen
-        <select class="select-base w-56" [value]="selectedDeptId() ?? ''" (change)="setDept($any($event.target).value)">
-          <option value="">Semua Departemen</option>
-          @for (d of departments(); track d.id) { <option [value]="d.id">{{ d.name }}</option> }
-        </select>
-      </label>
-    }
-    @if (!isMR && deptName()) {
-      <span class="mlabel">{{ deptName() }}</span>
-    }
-  </div>
+  <app-page-header
+    title="Target Potensial Tahunan"
+    subtitle="Isi potential CR per bulan per idea. Total otomatis menjumlahkan 12 bulan. Terkunci setelah 19 Februari.">
+    <div class="flex flex-wrap items-center gap-3">
+      <app-year-select [year]="year()" [years]="years()" (yearChange)="setYear($event)" />
+      @if (isMR) {
+        <label class="flex items-center gap-2">
+          <span class="hidden sm:inline text-sm text-muted">Departemen</span>
+          <select class="select-base w-48" [value]="selectedDeptId() ?? ''" (change)="setDept($any($event.target).value)">
+            <option value="">Semua Departemen</option>
+            @for (d of departments(); track d.id) { <option [value]="d.id">{{ d.name }}</option> }
+          </select>
+        </label>
+      }
+      @if (!isMR && deptName()) {
+        <span class="mlabel font-medium">{{ deptName() }}</span>
+      }
+      <span class="hidden text-xs text-faint md:block">
+        <kbd class="rounded border border-hairline bg-paper px-1 py-0.5 font-mono text-[10px]">Enter</kbd> turun ·
+        <kbd class="rounded border border-hairline bg-paper px-1 py-0.5 font-mono text-[10px]">Tab</kbd> / <kbd class="rounded border border-hairline bg-paper px-1 py-0.5 font-mono text-[10px]">→</kbd> ke kanan
+      </span>
+    </div>
+  </app-page-header>
 
   @if (error()) {
     <p class="rounded-md bg-rust-tint px-3 py-2 text-sm text-rust">{{ error() }}</p>
@@ -26,17 +32,15 @@
       <svg class="mt-0.5 h-4 w-4 shrink-0 text-ochre" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
       <div>
         @if (isMR) {
-          <p class="font-medium text-ink">Sudah melewati tanggal 19 — target tahunan saat ini terkunci.</p>
-          <p class="mt-0.5 text-ink-soft">Perubahan hanya dapat dilakukan untuk tahun yang masih terbuka sesuai jadwal.</p>
+          <p class="font-medium text-ink">Target potensial CR terkunci untuk user — Anda (MR) tetap dapat mengubahnya.</p>
         } @else {
-          <p class="font-medium text-ink">Sudah melewati tanggal 19 — target tahunan terkunci.</p>
-          <p class="mt-0.5 text-ink-soft">Bila perlu koreksi, harap hubungi MR.</p>
+          <p class="font-medium text-ink">Target potensial CR terkunci — bila perlu koreksi, hubungi MR.</p>
         }
       </div>
     </div>
   }
 
-  <!-- Section target per departemen (inline edit) -->
+  <!-- Kartu per idea: nama di atas, input 12 bulan di bawah -->
   @if (loading() && !ideas().length) {
     <div class="rounded-xl border border-hairline bg-surface p-6">
       <div class="skeleton h-6 w-48"></div>
@@ -45,80 +49,49 @@
   } @else {
     @for (group of grouped(); track group.dept) {
       <section class="fade-up">
-        <div class="mb-1 flex items-baseline justify-between border-b border-hairline pb-2">
-          <h2 class="font-display text-base font-semibold tracking-tight text-ink">{{ group.dept }}</h2>
-          <span class="mlabel">{{ group.items.length }} idea</span>
+        <div class="mb-3 flex items-baseline justify-between border-b border-hairline pb-2">
+          <h2 class="font-display text-lg font-semibold tracking-tight text-ink">{{ group.dept }}</h2>
+          <span class="mlabel">{{ group.items.length }} idea · Total <span class="text-forest">{{ fmt(deptTotal(group.items)) }}</span></span>
         </div>
 
-        <div class="overflow-x-auto">
-          <table class="min-w-full text-sm">
-            <thead>
-              <tr class="border-b border-hairline text-left">
-                <th class="mlabel px-3 py-2.5 pl-0 font-medium">Nama Idea</th>
-                <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Budget/Tahun</th>
-                <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Potential CR/Tahun</th>
-                <th class="mlabel table-cell-num px-3 py-2.5 font-medium">Actual CR</th>
-                <th class="mlabel px-3 py-2.5 font-medium text-center">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (item of group.items; track item.idea.id) {
-                <tr class="border-b border-hairline transition-colors hover:bg-surface/70">
-                  <td class="max-w-xs px-3 py-2.5 pl-0 font-medium text-ink whitespace-normal break-words" [title]="item.idea.name">{{ item.idea.name }}</td>
-                  <td class="relative px-3 py-2.5">
-                    @if (isDirtyBudget(item.index)) { <span class="absolute top-1/2 -left-0.5 -translate-y-1/2 h-5 w-[3px] rounded-full bg-amber-500"></span> }
-                    <input type="text" inputmode="decimal" autocomplete="off" class="cell-input"
-                           [value]="item.idea.budget ? rupiahFmt.format(item.idea.budget) : ''"
-                           (input)="onBudget(item.index, $event)" />
-                  </td>
-                  <td class="relative px-3 py-2.5">
-                    @if (isDirtyPotential(item.index)) { <span class="absolute top-1/2 -left-0.5 -translate-y-1/2 h-5 w-[3px] rounded-full bg-amber-500"></span> }
-                    <input type="text" inputmode="decimal" autocomplete="off" class="cell-input"
-                           [value]="item.idea.potentialCr ? rupiahFmt.format(item.idea.potentialCr) : ''"
-                           (input)="onPotentialCr(item.index, $event)" />
-                  </td>
-                  <td class="table-cell-num px-3 py-2.5 font-semibold"
-                      [class.text-forest]="actualCr(item.idea) >= 0"
-                      [class.text-rust]="actualCr(item.idea) < 0">{{ fmt(actualCr(item.idea)) }}</td>
-                  <td class="px-3 py-2.5 text-center">
-                    @if (item.idea.budget > 0 && item.idea.potentialCr > 0 && item.idea.actual > 0) {
-                      <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] bg-forest-tint text-forest">
-                        <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-                        Terisi
-                      </span>
-                    } @else if (item.idea.budget === 0 && item.idea.potentialCr === 0) {
-                      <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] bg-stone-100 text-stone-600">
-                        <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-                        Belum diisi
-                      </span>
-                    } @else {
-                      <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] bg-ochre-tint text-ochre">
-                        <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-                        Sebagian
-                      </span>
-                    }
-                  </td>
-                </tr>
-              }
-            </tbody>
-            @if (group.items.length > 0) {
-              <tfoot>
-                <tr class="rule-double font-semibold text-ink">
-                  <td class="py-3 pr-3 pl-0">Total</td>
-                  <td class="table-cell-num px-3 py-3">{{ fmt(groupTotals(group).budget) }}</td>
-                  <td class="table-cell-num px-3 py-3">{{ fmt(groupTotals(group).potential) }}</td>
-                  <td class="table-cell-num px-3 py-3 text-forest">{{ fmt(groupTotals(group).actual) }}</td>
-                  <td></td>
-                </tr>
-              </tfoot>
-            }
-          </table>
+        <div class="space-y-3" gridNav>
+          @for (item of group.items; track item.idea.id) {
+            <article class="card p-4">
+              <!-- Nama idea di atas (tetap terlihat, tidak ikut scroll horizontal) -->
+              <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h3 class="font-medium text-ink" [title]="item.idea.name">{{ item.idea.name }}</h3>
+                <span class="text-sm text-muted shrink-0">
+                  Total <span class="tnum font-semibold text-forest">{{ fmt(ideaTotal(item.idea)) }}</span>
+                </span>
+              </div>
+
+              <!-- Kolom header bulan: satu baris 12 kolom, scroll horizontal saat sempit -->
+              <div class="overflow-x-auto pb-1">
+                <div class="grid min-w-[80rem] grid-cols-12 gap-2.5">
+                  @for (m of [1,2,3,4,5,6,7,8,9,10,11,12]; track m) {
+                    <div class="relative text-center">
+                      <span class="mb-1 block text-[11px] font-semibold tracking-wide text-muted uppercase">{{ MONTHS[m - 1] }}</span>
+                      <input type="text" inputmode="decimal" autocomplete="off"
+                             class="cell-input !min-w-0 w-full h-12 !text-sm font-semibold {{ editable() ? '' : 'opacity-60' }}"
+                             [value]="item.idea.months[m] ? rupiahFmt.format(item.idea.months[m]) : ''"
+                             [disabled]="!editable()"
+                             [attr.data-row]="item.index" [attr.data-col]="m"
+                             (input)="onMonth(item.index, m, $event)" />
+                      @if (isDirtyMonth(item.index, m)) {
+                        <span class="absolute -top-0.5 right-1.5 h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+            </article>
+          }
         </div>
       </section>
     } @empty {
       <div class="rounded-xl border border-dashed border-hairline bg-surface/50 px-6 py-14 text-center">
-        <p class="font-display text-base text-muted">Belum ada idea pada tahun {{ year() }}.</p>
-        <p class="mt-1 text-xs text-faint">Pilih tahun/departemen yang sesuai atau tambahkan idea dari halaman Input Data.</p>
+        <p class="font-display text-base text-muted">Tidak ada idea pada tahun {{ year() }}.</p>
+        <p class="mt-1 text-xs text-faint">Tambahkan idea dari halaman Input Data terlebih dahulu.</p>
       </div>
     }
   }

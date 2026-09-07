@@ -2,28 +2,19 @@ import { ChangeDetectionStrategy, Component, HostListener, OnInit, computed, inj
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { AuthService, httpError } from '../../core/auth.service';
-import { Department, IdeaListItem, MetaInfo } from '../../core/models';
+import { Department, MetaInfo, TargetIdeaEntry, TargetsIdeasResponse } from '../../core/models';
 import { fmtNum, parseRupiahInput, rupiahFmt } from '../../core/format';
 import { PageHeader, SaveBar, YearSelect } from '../../shared/ui';
+import { GridNavDirective } from '../../shared/grid-nav.directive';
 
-interface IdeaTarget {
-  id: number;
-  name: string;
-  departmentId: string;
-  departmentName: string;
-  budget: number;
-  potentialCr: number;
-  actual: number;
-}
-
-interface DeptGroup {
+interface DeptIdeaGroup {
   dept: string;
-  items: { idea: IdeaTarget; index: number }[];
+  items: { idea: TargetIdeaEntry; index: number }[];
 }
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageHeader, YearSelect, SaveBar],
+  imports: [PageHeader, YearSelect, SaveBar, GridNavDirective],
   templateUrl: './targets.page.html'
 })
 export class TargetsPage implements OnInit {
@@ -40,11 +31,13 @@ export class TargetsPage implements OnInit {
   departments = signal<Department[]>([]);
   selectedDeptId = signal<string | null>(null);
 
-  ideas = signal<IdeaTarget[]>([]);
-  baseline = signal<IdeaTarget[]>([]);
+  ideas = signal<TargetIdeaEntry[]>([]);
+  baseline = signal<TargetIdeaEntry[]>([]);
   loading = signal(true);
   saving = signal(false);
   error = signal<string | null>(null);
+  /** Set bulan yang pernah diketik ("${i}-${m}") — agar nilai 0 tetap ikut disimpan. */
+  private touched = signal<Set<string>>(new Set());
 
   isMR = this.auth.user()?.role === 'MR';
 
@@ -60,24 +53,27 @@ export class TargetsPage implements OnInit {
     return now.getTime() > lockDate.getTime();
   });
 
+  /** MR boleh tetap edit walau terkunci; role lain terkunci. */
+  editable = computed(() => !this.targetLocked() || this.isMR);
+
   dirtyCount = computed(() => {
     const cur = this.ideas();
     const base = this.baseline();
+    const touchedSet = this.touched();
     let n = 0;
     for (let i = 0; i < cur.length; i++) {
-      if (cur[i]?.budget !== base[i]?.budget || cur[i]?.potentialCr !== base[i]?.potentialCr) n++;
+      for (let m = 1; m <= 12; m++) {
+        if (cur[i]?.months[m] !== base[i]?.months[m]) n++;
+        else if (touchedSet.has(`${i}-${m}`)) n++;
+      }
     }
     return n;
   });
 
-  totalBudget = computed(() => this.ideas().reduce((s, i) => s + i.budget, 0));
-  totalPotential = computed(() => this.ideas().reduce((s, i) => s + i.potentialCr, 0));
-  totalActual = computed(() => this.ideas().reduce((s, i) => s + i.actual, 0));
-
-  /** Grup idea per departemen, menyimpan indeks datar untuk edit inline. */
-  grouped = computed<DeptGroup[]>(() => {
+  /** Grup idea per departemen. */
+  grouped = computed<DeptIdeaGroup[]>(() => {
     const list = this.ideas();
-    const map = new Map<string, { idea: IdeaTarget; index: number }[]>();
+    const map = new Map<string, { idea: TargetIdeaEntry; index: number }[]>();
     list.forEach((idea, index) => {
       if (!map.has(idea.departmentName)) map.set(idea.departmentName, []);
       map.get(idea.departmentName)!.push({ idea, index });
@@ -85,34 +81,43 @@ export class TargetsPage implements OnInit {
     return [...map.entries()].map(([dept, items]) => ({ dept, items }));
   });
 
-  groupTotals(group: DeptGroup): { budget: number; potential: number; actual: number } {
-    return group.items.reduce(
-      (acc, { idea }) => ({
-        budget: acc.budget + idea.budget,
-        potential: acc.potential + idea.potentialCr,
-        actual: acc.actual + idea.actual
-      }),
-      { budget: 0, potential: 0, actual: 0 }
-    );
+  ideaTotal(idea: TargetIdeaEntry): number {
+    return Object.values(idea.months).reduce((a, b) => a + b, 0);
+  }
+
+  deptTotal(items: { idea: TargetIdeaEntry }[]): number {
+    return items.reduce((s, { idea }) => s + this.ideaTotal(idea), 0);
+  }
+
+  get totalAll(): number {
+    return this.ideas().reduce((s, i) => s + this.ideaTotal(i), 0);
   }
 
   ngOnInit() {
     firstValueFrom(this.http.get<MetaInfo>('/api/meta'))
       .then((meta) => this.years.set(this.buildYears(meta.years)))
       .catch(() => {});
-    firstValueFrom(this.http.get<Department[]>('/api/departments'))
-      .then((d) => {
-        this.departments.set(d);
-        this.loadIdeas();
-      })
-      .catch(() => { this.loadIdeas(); });
+    this.initDepartments();
+  }
+
+  private initDepartments() {
+    if (this.isMR) {
+      firstValueFrom(this.http.get<Department[]>('/api/departments'))
+        .then((d) => {
+          this.departments.set(d);
+          this.loadIdeas();
+        })
+        .catch(() => { this.loadIdeas(); });
+    } else {
+      this.loadIdeas();
+    }
   }
 
   /** Tahun yang bisa dipilih: meta-years + rentang beberapa tahun untuk MR/FA agar bisa input data takhta dan yang belum ada ide-nya. */
   private buildYears(metaYears: number[]): number[] {
     const role = this.auth.user()?.role;
     const ys = [...metaYears];
-    if (role === 'MR' || role === 'FA') {
+    if (role === 'MR' || role === 'FA' || role === 'FA_INPUT') {
       const now = new Date().getFullYear();
       for (let y = now - 5; y <= now + 2; y++) {
         if (!ys.includes(y)) ys.push(y);
@@ -124,64 +129,44 @@ export class TargetsPage implements OnInit {
   setYear(y: number) { this.year.set(y); this.loadIdeas(); }
   setDept(id: string) { this.selectedDeptId.set(id ? id : null); this.loadIdeas(); }
 
-  private deptParam(): string | null {
-    return this.isMR ? this.selectedDeptId() : (this.auth.user()?.departmentId ?? null);
-  }
-
-  async loadIdeas() {
-    const dept = this.deptParam();
+  loadIdeas() {
     this.loading.set(true);
     this.error.set(null);
-    try {
-      const p = new URLSearchParams({ year: String(this.year()) });
-      if (dept) p.set('department_id', dept);
-      const list = await firstValueFrom(this.http.get<IdeaListItem[]>(`/api/ideas?${p}`));
-      const mapped: IdeaTarget[] = list.map((i) => ({
-        id: i.id,
-        name: i.name,
-        departmentId: i.departmentId,
-        departmentName: i.departmentName,
-        budget: i.budget,
-        potentialCr: i.potentialCr,
-        actual: i.actual
-      }));
-      this.ideas.set(mapped);
-      this.baseline.set(mapped.map((r) => ({ ...r })));
-    } catch (err) {
-      this.error.set(httpError(err as never));
-    } finally {
-      this.loading.set(false);
-    }
+    const p = new URLSearchParams({ year: String(this.year()) });
+    const dept = this.isMR ? this.selectedDeptId() : (this.auth.user()?.departmentId ?? null);
+    if (dept) p.set('department_id', dept);
+
+    firstValueFrom(this.http.get<TargetsIdeasResponse>(`/api/targets/ideas?${p}`))
+      .then((resp) => {
+        const mapped: TargetIdeaEntry[] = resp.ideas.map((i) => ({ ...i, months: { ...i.months } }));
+        this.ideas.set(mapped);
+        this.baseline.set(mapped.map((i) => ({ ...i, months: { ...i.months } })));
+        this.touched.set(new Set());
+      })
+      .catch((err) => this.error.set(httpError(err as never)))
+      .finally(() => this.loading.set(false));
   }
 
-  onBudget(index: number, ev: Event) {
+  onMonth(index: number, month: number, ev: Event) {
     const el = ev.target as HTMLInputElement;
+    const raw = (el.value || '').trim();
     const v = parseRupiahInput(el.value);
-    this.ideas.update((rows) => rows.map((r, i) => (i === index ? { ...r, budget: v } : r)));
-    el.value = v === 0 ? '' : rupiahFmt.format(v);
+    this.ideas.update((rows) => rows.map((r, i) => i === index ? { ...r, months: { ...r.months, [month]: v } } : r));
+    this.touched.update((s) => { const next = new Set(s); next.add(`${index}-${month}`); return next; });
+    // Tampilkan "0" bila memang diketik nol; biarkan kosong bila input dikosongkan
+    el.value = raw === '' ? '' : rupiahFmt.format(v);
   }
 
-  onPotentialCr(index: number, ev: Event) {
-    const el = ev.target as HTMLInputElement;
-    const v = parseRupiahInput(el.value);
-    this.ideas.update((rows) => rows.map((r, i) => (i === index ? { ...r, potentialCr: v } : r)));
-    el.value = v === 0 ? '' : rupiahFmt.format(v);
-  }
-
-  isDirtyBudget(i: number): boolean {
-    return this.ideas()[i]?.budget !== this.baseline()[i]?.budget;
-  }
-
-  isDirtyPotential(i: number): boolean {
-    return this.ideas()[i]?.potentialCr !== this.baseline()[i]?.potentialCr;
-  }
-
-  actualCr(i: IdeaTarget): number {
-    return Math.round(i.actual * 100) / 100;
+  isDirtyMonth(index: number, month: number): boolean {
+    const cur = this.ideas()[index];
+    const base = this.baseline()[index];
+    const touchedSet = this.touched();
+    return cur && base && (cur.months[month] !== base.months[month] || touchedSet.has(`${index}-${month}`));
   }
 
   revertRows() {
-    this.ideas.set(this.baseline().map((r) => ({ ...r })));
+    this.ideas.set(this.baseline().map((i) => ({ ...i, months: { ...i.months } })));
+    this.touched.set(new Set());
   }
 
   async saveAll() {
@@ -191,14 +176,13 @@ export class TargetsPage implements OnInit {
     try {
       const cur = this.ideas();
       const base = this.baseline();
+      const touchedSet = this.touched();
       for (let i = 0; i < cur.length; i++) {
-        if (cur[i].budget !== base[i]?.budget || cur[i].potentialCr !== base[i]?.potentialCr) {
-          await firstValueFrom(this.http.put(`/api/ideas/${cur[i].id}`, {
-            name: cur[i].name,
-            budget: cur[i].budget,
-            potentialCr: cur[i].potentialCr,
-            remark: null
-          }));
+        const changed = Object.entries(cur[i].months)
+          .filter(([m, v]) => v !== base[i]?.months[Number(m)] || touchedSet.has(`${i}-${Number(m)}`))
+          .map(([m, v]) => ({ month: Number(m), amount: v }));
+        if (changed.length) {
+          await firstValueFrom(this.http.put(`/api/targets/ideas/${cur[i].id}`, { rows: changed }));
         }
       }
       await this.loadIdeas();

@@ -34,7 +34,11 @@ export class LoginPage {
       const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
       await this.router.navigateByUrl(returnUrl && returnUrl !== '/login' ? returnUrl : '/dashboard');
     } catch (err) {
-      this.error.set(httpError(err as import('@angular/common/http').HttpErrorResponse));
+      const e = err as import('@angular/common/http').HttpErrorResponse;
+      this.error.set(httpError(e));
+      if (e.status === 401) {
+        alert('Username atau password salah');
+      }
     } finally {
       this.loading.set(false);
     }

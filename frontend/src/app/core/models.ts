@@ -76,6 +76,21 @@ export interface TargetsResponse {
   departments: TargetDeptEntry[];
 }
 
+export interface TargetIdeaEntry {
+  id: number;
+  departmentId: string;
+  departmentName: string;
+  name: string;
+  months: Record<number, number>;
+}
+
+export interface TargetsIdeasResponse {
+  year: number;
+  open: boolean;
+  lockDate: string;
+  ideas: TargetIdeaEntry[];
+}
+
 export interface DeptSummary {
   departmentId: string;
   departmentName: string;
