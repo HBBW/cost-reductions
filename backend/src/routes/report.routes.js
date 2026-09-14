@@ -53,6 +53,61 @@ async function fetchDetail(year, deptIds) {
   }));
 }
 
+/** Rekap per departemen (logika sama dengan /dashboard/summary). */
+async function fetchDeptRecap(year, deptIds) {
+  const deptF = deptFilter('d.id', deptIds);
+  const sql = `
+    SELECT d.id AS department_id, d.name AS department_name,
+           COALESCE(pm_dept.potential_total, 0) AS potential,
+           COALESCE(idea_agg.ideas_count, 0) AS ideas_count,
+           COALESCE(month_agg.actual_cr, 0) AS actual_cr
+    FROM ${t('departments')} d
+    LEFT JOIN (
+      SELECT i.department_id, COUNT(DISTINCT i.id) AS ideas_count
+      FROM ${t('ideas')} i
+      WHERE i.year = ?
+      GROUP BY i.department_id
+    ) idea_agg ON idea_agg.department_id = d.id
+    LEFT JOIN (
+      SELECT i.department_id, SUM(pm.potential_amount) AS potential_total
+      FROM ${t('idea_potential_monthly')} pm
+      JOIN ${t('ideas')} i ON i.id = pm.idea_id
+      WHERE i.year = ?
+      GROUP BY i.department_id
+    ) pm_dept ON pm_dept.department_id = d.id
+    LEFT JOIN (
+      SELECT i.department_id, SUM(im.budget - im.actual_cost) AS actual_cr
+      FROM ${t('idea_monthly')} im
+      JOIN ${t('ideas')} i ON i.id = im.idea_id
+      WHERE i.year = ?
+      GROUP BY i.department_id
+    ) month_agg ON month_agg.department_id = d.id
+    WHERE d.is_active = 1${deptF.sql}
+    ORDER BY d.name`;
+  const rows = await query(sql, [year, year, year, ...deptF.params]);
+  const depts = rows.map((r) => {
+    const potential = Number(r.potential);
+    const actual = Number(r.actual_cr);
+    return {
+      departmentName: r.department_name,
+      ideasCount: Number(r.ideas_count),
+      potential,
+      actual,
+      remaining: Math.round((actual - potential) * 100) / 100
+    };
+  });
+  const totals = depts.reduce(
+    (acc, d) => ({
+      ideasCount: acc.ideasCount + d.ideasCount,
+      potential: acc.potential + d.potential,
+      actual: acc.actual + d.actual,
+      remaining: acc.remaining + d.remaining
+    }),
+    { ideasCount: 0, potential: 0, actual: 0, remaining: 0 }
+  );
+  return { depts, totals };
+}
+
 router.get('/report/detail', requireAuth, ah(async (req, res) => {
   const year = Number(req.query.year) || new Date().getFullYear();
   const scope = await resolveScope(req, req.query.department_id);
@@ -377,6 +432,91 @@ router.get('/report/export/excel', requireAuth, requireRole('FA', 'FA_READONLY',
   // Output Response
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', `attachment; filename="Laporan-CR-${year}.xlsx"`);
+  await wb.xlsx.write(res);
+  res.end();
+}));
+
+/* ==========================================
+ * Sheet Dashboard: Rekap semua departemen + grafik (PNG) di bawah tabel
+ * ========================================== */
+router.post('/report/export/dashboard', requireAuth, requireRole('FA', 'FA_READONLY', 'FA_INPUT', 'MR'), ah(async (req, res) => {
+  const year = Number(req.body?.year) || new Date().getFullYear();
+  const scope = await resolveScope(req, null);
+  const { depts, totals } = await fetchDeptRecap(year, scope.deptIds);
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'CR Monitor';
+  wb.created = new Date();
+
+  const ws = wb.addWorksheet('Rekap Dashboard');
+
+  const baseBorder = {
+    top: { style: 'thin', color: { argb: 'FF000000' } },
+    left: { style: 'thin', color: { argb: 'FF000000' } },
+    bottom: { style: 'thin', color: { argb: 'FF000000' } },
+    right: { style: 'thin', color: { argb: 'FF000000' } }
+  };
+  const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E9C' } };
+  const totalFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9EAD3' } };
+
+  ws.columns = [
+    { width: 28 },
+    { width: 18 },
+    { width: 18 },
+    { width: 18 }
+  ];
+
+  // Judul
+  ws.mergeCells(1, 1, 1, 4);
+  const title = ws.getCell(1, 1);
+  title.value = `Rekap Cost Reduction ${year} (Semua Departemen)`;
+  title.font = { bold: true, size: 14, name: 'Calibri' };
+  title.alignment = { horizontal: 'center', vertical: 'middle' };
+  ws.getRow(1).height = 26;
+
+  // Header
+  const headerRow = ws.addRow(['Departemen', 'Potential CR', 'Actual CR', 'Sisa Potential']);
+  headerRow.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, name: 'Calibri' };
+    cell.fill = headerFill;
+    cell.border = baseBorder;
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+  });
+
+  // Data departemen
+  for (const d of depts) {
+    const row = ws.addRow([d.departmentName, d.potential, d.actual, d.remaining]);
+    row.eachCell((cell, col) => {
+      cell.border = baseBorder;
+      cell.alignment = col === 1 ? { left: 'left', vertical: 'middle' } : { right: 'right', vertical: 'middle' };
+      if (col > 1) cell.numFmt = '#,##0';
+    });
+  }
+
+  // Total
+  const totalRow = ws.addRow(['TOTAL', totals.potential, totals.actual, totals.remaining]);
+  totalRow.eachCell((cell, col) => {
+    cell.font = { bold: true, name: 'Calibri' };
+    cell.fill = totalFill;
+    cell.border = baseBorder;
+    cell.alignment = col === 1 ? { left: 'left', vertical: 'middle' } : { right: 'right', vertical: 'middle' };
+    if (col > 1) cell.numFmt = '#,##0';
+  });
+
+  // Grafik di bawah tabel (jika dikirim PNG)
+  const imageData = req.body?.image;
+  if (imageData && typeof imageData === 'string') {
+    const b64 = imageData.replace(/^data:image\/png;base64,/, '');
+    const imageId = wb.addImage({ base64: b64, extension: 'png' });
+    const startRow = totalRow.number + 2;
+    ws.addImage(imageId, {
+      tl: { col: 0, row: startRow - 1 },
+      ext: { width: 900, height: 420 }
+    });
+  }
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="Dashboard-CR-${year}.xlsx"`);
   await wb.xlsx.write(res);
   res.end();
 }));

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
@@ -23,6 +23,8 @@ export class DashboardPage implements OnInit {
   years = signal<number[]>([new Date().getFullYear()]);
   data = signal<SummaryResponse | null>(null);
   trend = signal<TrendResponse | null>(null);
+  downloading = signal(false);
+  chartRef = viewChild(TrendChart);
 
   ngOnInit() {
     firstValueFrom(this.http.get<MetaInfo>('/api/meta')).then((meta) => {
@@ -64,6 +66,28 @@ export class DashboardPage implements OnInit {
       return name ? `Rekap Departemen Anda — ${name}` : 'Rekap Departemen Anda';
     }
     return 'Rekap per Departemen';
+  }
+
+  async downloadDashboard() {
+    if (this.downloading()) return;
+    this.downloading.set(true);
+    try {
+      const image = this.chartRef()?.exportImage() ?? undefined;
+      const blob = await firstValueFrom(
+        this.http.post(`/api/report/export/dashboard`, { year: this.year(), image }, { responseType: 'blob' })
+      );
+      const url = URL.createObjectURL(blob as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Dashboard-CR-${this.year()}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Download dashboard gagal:', err);
+      alert('Gagal mengunduh dashboard. Silakan coba lagi.');
+    } finally {
+      this.downloading.set(false);
+    }
   }
 
   achievementTone(): 'default' | 'positive' | 'negative' {

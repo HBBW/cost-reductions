@@ -173,6 +173,10 @@ export class TrendChart implements AfterViewInit {
     return ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'][m - 1] || '';
   }
 
+  exportImage(): string | null {
+    return this.chart ? this.chart.toBase64Image('image/png', 2) : null;
+  }
+
   private update(data: TrendMonth[]) {
     const chart = this.chart;
     if (!chart) return;

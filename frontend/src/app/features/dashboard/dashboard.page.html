@@ -51,6 +51,16 @@
         <span class="flex items-center gap-1.5"><span class="h-0.5 w-4 rounded bg-[#2563EB]"></span> Potential CR</span>
         <span class="flex items-center gap-1.5"><span class="h-0.5 w-4 rounded bg-[#8B0000]"></span> YTD Actual CR</span>
       </div>
+      @if (!isUser()) {
+        <button class="btn btn-secondary shrink-0" type="button" (click)="downloadDashboard()" [disabled]="downloading()">
+          @if (downloading()) {
+            <span class="mlabel">Menyiapkan…</span>
+          } @else {
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+            Download Dashboard (.xlsx)
+          }
+        </button>
+      }
     </div>
     <div class="p-6">
       @if (trend(); as t) {
