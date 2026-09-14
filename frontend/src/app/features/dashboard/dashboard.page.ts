@@ -72,7 +72,11 @@ export class DashboardPage implements OnInit {
     if (this.downloading()) return;
     this.downloading.set(true);
     try {
-      const image = this.chartRef()?.exportImage() ?? undefined;
+      const image = this.chartRef()?.exportImage();
+      if (!image) {
+        alert('Grafik belum siap. Coba lagi beberapa saat, atau refresh halaman.');
+        return;
+      }
       const blob = await firstValueFrom(
         this.http.post(`/api/report/export/dashboard`, { year: this.year(), image }, { responseType: 'blob' })
       );

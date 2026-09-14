@@ -174,7 +174,14 @@ export class TrendChart implements AfterViewInit {
   }
 
   exportImage(): string | null {
-    return this.chart ? this.chart.toBase64Image('image/png', 2) : null;
+    if (this.chart) {
+      try {
+        return this.chart.toBase64Image('image/png', 1);
+      } catch { /* jatuh ke fallback canvas */ }
+    }
+    const canvas = this.canvas()?.nativeElement;
+    if (canvas) return canvas.toDataURL('image/png');
+    return null;
   }
 
   private update(data: TrendMonth[]) {

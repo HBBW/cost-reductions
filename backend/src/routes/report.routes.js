@@ -261,7 +261,7 @@ router.get('/report/export/excel', requireAuth, requireRole('FA', 'FA_READONLY',
 
       // Hitung jumlah bulan yang sudah diisi untuk idea ini
       const filledMonthsCount = mData.filter(m => m.hasData).length;
-      const potentialCrPerYear = idea.potentialCr * filledMonthsCount;
+      const potentialCrPerYear = idea.potential;
 
       deptTotalPotYr += potentialCrPerYear;
       deptTotalActYr += idea.actual;
@@ -410,8 +410,7 @@ router.get('/report/export/excel', requireAuth, requireRole('FA', 'FA_READONLY',
   ];
 
   for (const idea of ideas) {
-    const filledMonthsCount = idea.months.length;
-    const potentialCrPerYear = idea.potentialCr * filledMonthsCount;
+    const potentialCrPerYear = idea.potential;
     const sisa = Math.round((potentialCrPerYear - idea.actual) * 100) / 100;
 
     ws2.addRow({
