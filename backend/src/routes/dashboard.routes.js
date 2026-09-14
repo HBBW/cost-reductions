@@ -127,6 +127,16 @@ router.get('/dashboard/trend', requireAuth, ah(async (req, res) => {
   );
   const tgtMap = new Map(tgtRows.map((r) => [Number(r.month), Number(r.target)]));
 
+  const potF = deptFilter('i.department_id', scope.deptIds);
+  const potRows = await query(
+    `SELECT pm.month, SUM(pm.potential_amount) AS potential
+     FROM ${t('idea_potential_monthly')} pm JOIN ${t('ideas')} i ON i.id = pm.idea_id
+     WHERE i.year = ?${potF.sql}
+     GROUP BY pm.month`,
+    [year, ...potF.params]
+  );
+  const potMap = new Map(potRows.map((r) => [Number(r.month), Number(r.potential)]));
+
   let cumulative = 0;
   const nowMonth = new Date().getFullYear() === year ? new Date().getMonth() + 1 : 13;
   const months = [];
@@ -136,6 +146,7 @@ router.get('/dashboard/trend', requireAuth, ah(async (req, res) => {
     months.push({
       month: m,
       target: tgtMap.get(m) || 0,
+      potential: potMap.get(m) || 0,
       actual,
       cumulative: Math.round(cumulative * 100) / 100,
       future: m > nowMonth

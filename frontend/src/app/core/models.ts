@@ -122,6 +122,7 @@ export interface SummaryResponse {
 export interface TrendMonth {
   month: number;
   target: number;
+  potential: number;
   actual: number;
   cumulative: number;
   future: boolean;
