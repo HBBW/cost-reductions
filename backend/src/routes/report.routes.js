@@ -311,9 +311,9 @@ router.get('/report/export/excel', requireAuth, requireRole('FA', 'FA_READONLY',
           cell.border = baseBorder;
           cell.font = { size: 9, name: 'Calibri', bold: sub.bold };
 
-          if (colNumber >= 8) {
-            // Kolom Bulan
-            cell.numFmt = '#,##0';
+           if (colNumber >= 8 && colNumber <= 19) {
+             // Kolom Bulan
+             cell.numFmt = '#,##0';
             cell.alignment = { horizontal: 'right', vertical: 'middle' };
             if (sub.bg) cell.fill = sub.bg;
 
