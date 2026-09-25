@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs';
 import { query, t } from '../db/index.js';
 import { ah } from '../utils/http.js';
 import { requireAuth, requireRole, resolveScope, deptFilter } from '../middlewares/auth.js';
-import { monthName } from '../utils/period.js';
+import { isMonthlyOpen, monthName } from '../utils/period.js';
 
 const router = Router();
 
@@ -11,13 +11,14 @@ async function fetchDetail(year, deptIds) {
   const params = [year, ...deptFilter('i.department_id', deptIds).params];
   let sql = `
     SELECT d.name AS department_name, i.id AS idea_id, i.name AS idea_name,
-           i.remark,
-           im.month, im.budget, im.actual_cost,
-           pm.potential_amount
+           i.remark, i.effectivity_start, i.effectivity_end, i.status,
+            COALESCE(im.month, pm.month) AS month, im.budget, im.actual_cost,
+            pm.potential_amount
+
     FROM ${t('ideas')} i
     JOIN ${t('departments')} d ON d.id = i.department_id
-    LEFT JOIN ${t('idea_monthly')} im ON im.idea_id = i.id
-    LEFT JOIN ${t('idea_potential_monthly')} pm ON pm.idea_id = i.id AND pm.month = im.month
+     LEFT JOIN ${t('idea_potential_monthly')} pm ON pm.idea_id = i.id
+     LEFT JOIN ${t('idea_monthly')} im ON im.idea_id = i.id AND im.month = pm.month
     WHERE i.year = ?${deptFilter('i.department_id', deptIds).sql}`;
   sql += ' ORDER BY d.name, i.id, im.month';
 
@@ -29,8 +30,11 @@ async function fetchDetail(year, deptIds) {
       ideasMap.set(id, {
         departmentName: r.department_name,
         name: r.idea_name,
-        remark: r.remark,
-        months: [],
+         remark: r.remark,
+         effectivityStart: r.effectivity_start,
+         effectivityEnd: r.effectivity_end,
+         status: r.status || 'Efektif',
+         months: [],
         actual: 0,
         potentialTotal: 0
       });
@@ -40,8 +44,10 @@ async function fetchDetail(year, deptIds) {
       const budget = Number(r.budget);
       const cost = Number(r.actual_cost);
       const actualCr = Math.round((budget - cost) * 100) / 100;
-      const potentialCr = r.potential_amount != null ? Math.round(Number(r.potential_amount) * 100) / 100 : 0;
-      idea.months.push({ month: Number(r.month), potential: potentialCr, budget, actualCost: cost, actualCr });
+       const potentialCr = r.potential_amount != null ? Math.round(Number(r.potential_amount) * 100) / 100 : 0;
+       const filled = r.budget != null || r.actual_cost != null;
+       const status = potentialCr <= 0 ? 'Locked' : !isMonthlyOpen(year, Number(r.month)) ? 'Locked' : filled ? 'Efektif' : 'Belum Efektif';
+       idea.months.push({ month: Number(r.month), potential: potentialCr, budget, actualCost: cost, actualCr, status });
       idea.actual += actualCr;
       idea.potentialTotal += potentialCr;
     }
@@ -146,9 +152,10 @@ router.get('/report/export/csv', requireAuth, requireRole('FA', 'FA_READONLY', '
 router.get('/report/export/excel', requireAuth, requireRole('FA', 'FA_READONLY', 'FA_INPUT', 'MR'), ah(async (req, res) => {
   const year = Number(req.query.year) || new Date().getFullYear();
   const scope = await resolveScope(req, req.query.department_id);
-  const ideas = await fetchDetail(year, scope.deptIds);
+   const ideas = await fetchDetail(year, scope.deptIds);
+   const dashboard = await fetchDeptRecap(year, scope.deptIds);
 
-  const wb = new ExcelJS.Workbook();
+   const wb = new ExcelJS.Workbook();
   wb.creator = 'CR Monitor';
   wb.created = new Date();
 
@@ -180,15 +187,18 @@ router.get('/report/export/excel', requireAuth, requireRole('FA', 'FA_READONLY',
     { key: 'pot_cr_yr', width: 18 },
     { key: 'act_cr_yr', width: 18 },
     { key: 'ctrl_month', width: 18 },
-    ...monthNames.map(() => ({ width: 16 }))
-  ];
+     ...monthNames.map(() => ({ width: 16 })),
+     { key: 'effectivity', width: 24 },
+     { key: 'status', width: 16 }
+   ];
 
   // 2. Buat Multi-Level Header (Baris 1 & Baris 2)
   const headerRow1 = [
     'Sub.\nDept', 'Total\nNo.', 'Dept\nNo.', 'IDEA CR',
     'Cost Merit per Year ( IDR)', null, 'Control/\nMonth',
-    ...monthNames
-  ];
+     ...monthNames,
+     'Effectivity', 'Status'
+   ];
   const headerRow2 = [
     null, null, null, null,
     'Potential CR', 'Actual CR', null,
@@ -288,9 +298,11 @@ router.get('/report/export/excel', requireAuth, requireRole('FA', 'FA_READONLY',
           sIdx === 0 ? idea.name : null,
           sIdx === 0 ? potentialCrPerYear : null,
           sIdx === 0 ? idea.actual : null,
-          sub.ctrl,
-          ...mData.map((m) => m[sub.key])
-        ];
+           sub.ctrl,
+           ...mData.map((m) => m[sub.key]),
+           sIdx === 0 && idea.effectivityStart && idea.effectivityEnd ? `${idea.effectivityStart} to ${idea.effectivityEnd}` : null,
+           sIdx === 0 ? idea.status : null
+         ];
 
         const addedRow = ws.addRow(rowVal);
         addedRow.height = 18;
@@ -332,7 +344,9 @@ router.get('/report/export/excel', requireAuth, requireRole('FA', 'FA_READONLY',
       ws.mergeCells(`C${ideaStartRow}:C${endIdeaRow}`);
       ws.mergeCells(`D${ideaStartRow}:D${endIdeaRow}`);
       ws.mergeCells(`E${ideaStartRow}:E${endIdeaRow}`);
-      ws.mergeCells(`F${ideaStartRow}:F${endIdeaRow}`);
+       ws.mergeCells(`F${ideaStartRow}:F${endIdeaRow}`);
+       ws.mergeCells(`T${ideaStartRow}:T${endIdeaRow}`);
+       ws.mergeCells(`U${ideaStartRow}:U${endIdeaRow}`);
 
       ws.getCell(`B${ideaStartRow}`).alignment = { horizontal: 'center', vertical: 'middle' };
       ws.getCell(`C${ideaStartRow}`).alignment = { horizontal: 'center', vertical: 'middle' };
@@ -403,10 +417,12 @@ router.get('/report/export/excel', requireAuth, requireRole('FA', 'FA_READONLY',
   ws2.columns = [
     { header: 'Departemen', key: 'dept', width: 22 },
     { header: 'Nama Idea', key: 'idea', width: 38 },
-    { header: 'Potential CR/Tahun', key: 'pot', width: 18 },
-    { header: 'Actual CR/Tahun', key: 'acr', width: 18 },
-    { header: 'Sisa Potential', key: 'sisa', width: 16 },
-    { header: 'Remark', key: 'rem', width: 40 }
+     { header: 'Effectivity', key: 'effectivity', width: 24 },
+     { header: 'Status', key: 'status', width: 16 },
+     { header: 'Potential CR/Tahun', key: 'pot', width: 18 },
+     { header: 'Actual CR/Tahun', key: 'acr', width: 18 },
+     { header: 'Sisa Potential', key: 'sisa', width: 16 },
+     { header: 'Remark', key: 'rem', width: 40 }
   ];
 
   for (const idea of ideas) {
@@ -415,20 +431,50 @@ router.get('/report/export/excel', requireAuth, requireRole('FA', 'FA_READONLY',
 
     ws2.addRow({
       dept: idea.departmentName,
-      idea: idea.name,
-      pot: potentialCrPerYear,
+       idea: idea.name,
+       effectivity: idea.effectivityStart && idea.effectivityEnd ? `${idea.effectivityStart} to ${idea.effectivityEnd}` : '',
+       status: idea.status,
+       pot: potentialCrPerYear,
       acr: idea.actual,
-      sisa: sisa,
-      rem: idea.remark || ''
+       sisa: sisa,
+       rem: idea.remark || ''
     });
   }
 
   ws2.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
   ws2.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF175E4C' } };
   ['pot', 'acr', 'sisa'].forEach((k) => { ws2.getColumn(k).numFmt = '#,##0.00'; });
-  ws2.views = [{ state: 'frozen', ySplit: 1 }];
+   ws2.views = [{ state: 'frozen', ySplit: 1 }];
 
-  // Output Response
+   const ws3 = wb.addWorksheet('Rekap Dashboard');
+   ws3.columns = [
+     { header: 'Departemen', key: 'departmentName', width: 28 },
+     { header: 'Potential CR', key: 'potential', width: 18 },
+     { header: 'Actual CR', key: 'actual', width: 18 },
+     { header: 'Sisa Potential', key: 'remaining', width: 18 },
+     { header: 'Achievement %', key: 'achievement', width: 18 }
+   ];
+   dashboard.depts.forEach((d) => ws3.addRow({
+     departmentName: d.departmentName,
+     potential: d.potential,
+     actual: d.actual,
+     remaining: d.remaining,
+     achievement: d.potential ? d.actual / d.potential : 0
+   }));
+   ws3.addRow({
+     departmentName: 'TOTAL',
+     potential: dashboard.totals.potential,
+     actual: dashboard.totals.actual,
+     remaining: dashboard.totals.remaining,
+     achievement: dashboard.totals.potential ? dashboard.totals.actual / dashboard.totals.potential : 0
+   });
+   ws3.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+   ws3.getRow(1).fill = headerFill;
+   ['potential', 'actual', 'remaining'].forEach((key) => { ws3.getColumn(key).numFmt = '#,##0.00'; });
+   ws3.getColumn('achievement').numFmt = '0.00%';
+   ws3.views = [{ state: 'frozen', ySplit: 1 }];
+
+   // Output Response
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', `attachment; filename="Laporan-CR-${year}.xlsx"`);
   await wb.xlsx.write(res);

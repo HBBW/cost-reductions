@@ -29,6 +29,9 @@ export interface IdeaListItem {
   potentialCr: number;
   actual: number;
   remark: string | null;
+  effectivityStart: string | null;
+  effectivityEnd: string | null;
+  status: string;
   monthsFilled: number;
 }
 

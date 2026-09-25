@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { query, run, withTransaction, t } from '../db/index.js';
 import { ApiError, ah } from '../utils/http.js';
 import { requireAuth, requireRole, resolveScope, deptFilter, assertPeriodEditable } from '../middlewares/auth.js';
-import { isMonthlyOpen, isIdeaOpen } from '../utils/period.js';
+import { isMonthlyOpen, isIdeaOpen, isMonthInEffectivity } from '../utils/period.js';
 
 const router = Router();
 
@@ -23,7 +23,7 @@ const strField = (v, label, maxLen) => {
 
 async function getIdeaOr404(id) {
   const rows = await query(
-    `SELECT i.id, i.year, i.department_id, d.name AS department_name, i.name, i.budget, i.potential_cr, i.remark
+    `SELECT i.id, i.year, i.department_id, d.name AS department_name, i.name, i.budget, i.potential_cr, i.remark, i.effectivity_start, i.effectivity_end, i.status
      FROM ${t('ideas')} i JOIN ${t('departments')} d ON d.id = i.department_id WHERE i.id = ?`,
     [Number(id)]
   );
@@ -43,7 +43,7 @@ router.get('/ideas', requireAuth, ah(async (req, res) => {
 
   let sql = `
     SELECT i.id, i.year, i.department_id, d.name AS department_name, i.name,
-           i.remark,
+           i.remark, i.effectivity_start, i.effectivity_end, i.status,
            COALESCE(pm.potential_total, 0) AS potential_cr,
            COALESCE(SUM(im.budget), 0) AS budget,
            COALESCE(SUM(im.budget - im.actual_cost), 0) AS actual,
@@ -58,7 +58,7 @@ router.get('/ideas', requireAuth, ah(async (req, res) => {
     ) pm ON pm.idea_id = i.id
     WHERE i.year = ?${deptF.sql}`;
   const params = [year, ...deptF.params];
-  sql += ' GROUP BY i.id, i.year, i.department_id, d.name, i.name, i.remark, pm.potential_total';
+  sql += ' GROUP BY i.id, i.year, i.department_id, d.name, i.name, i.remark, i.effectivity_start, i.effectivity_end, i.status, pm.potential_total';
   sql += ' ORDER BY d.name, i.id';
 
   const rows = await query(sql, params);
@@ -71,8 +71,11 @@ router.get('/ideas', requireAuth, ah(async (req, res) => {
     budget: Number(r.budget),
     potentialCr: Number(r.potential_cr),
     actual: Number(r.actual),
-    remark: r.remark,
-    monthsFilled: Number(r.months_filled)
+     remark: r.remark,
+     effectivityStart: r.effectivity_start,
+     effectivityEnd: r.effectivity_end,
+     status: r.status || 'Efektif',
+     monthsFilled: Number(r.months_filled)
   })));
 }));
 
@@ -95,14 +98,18 @@ router.post('/ideas', requireAuth, requireRole('USER', 'FA_INPUT', 'MR'), ah(asy
   if (!name) throw new ApiError(400, 'Nama idea wajib diisi');
   const budget = numField(body.budget, 'Budget');
   const potentialCr = numField(body.potentialCr, 'Potential CR');
+  const effectivityStart = strField(body.effectivityStart, 'Mulai effectivity', 10);
+  const effectivityEnd = strField(body.effectivityEnd, 'Selesai effectivity', 10);
+  if (!effectivityStart || !effectivityEnd) throw new ApiError(400, 'Periode effectivity wajib diisi');
+  if (effectivityStart > effectivityEnd) throw new ApiError(400, 'Tanggal mulai effectivity tidak boleh setelah tanggal selesai');
   const remark = strField(body.remark, 'Remark', 2000);
 
   const result = await run(
-    `INSERT INTO ${t('ideas')} (year, department_id, name, budget, potential_cr, remark, created_by, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [year, departmentId, name, budget, potentialCr, remark, req.user.id, new Date(), new Date()]
-  );
-  res.status(201).json({ id: result.insertId });
+    `INSERT INTO ${t('ideas')} (year, department_id, name, budget, potential_cr, remark, effectivity_start, effectivity_end, status, created_by, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     [year, departmentId, name, budget, potentialCr, remark, effectivityStart, effectivityEnd, 'Efektif', req.user.id, new Date(), new Date()]
+   );
+   res.status(201).json({ id: result.insertId });
 }));
 
 /* ---------- Update idea (meta) ---------- */
@@ -181,9 +188,10 @@ router.get('/ideas/:id/monthly', requireAuth, ah(async (req, res) => {
       potentialCr,
       budget,
       actualCost: cost,
-      actualCr: Math.round((budget - cost) * 100) / 100,
-      filled: Boolean(r),
-      updatedAt: r ? r.updated_at : null
+       actualCr: Math.round((budget - cost) * 100) / 100,
+       filled: Boolean(r),
+       status: !isMonthInEffectivity(Number(idea.year), m, idea.effectivity_start, idea.effectivity_end) || !isMonthlyOpen(Number(idea.year), m) ? 'Locked' : r ? 'Efektif' : 'Belum Efektif',
+       updatedAt: r ? r.updated_at : null
     });
   }
   const totals = months.reduce(
@@ -209,7 +217,7 @@ router.get('/ideas/:id/monthly', requireAuth, ah(async (req, res) => {
     },
     months,
     totals,
-    lockedMonths: months.map((m) => ({ month: m.month, open: isMonthlyOpen(Number(idea.year), m.month) }))
+     lockedMonths: months.map((m) => ({ month: m.month, open: isMonthInEffectivity(Number(idea.year), m.month, idea.effectivity_start, idea.effectivity_end) && isMonthlyOpen(Number(idea.year), m.month) }))
   });
 }));
 
@@ -219,17 +227,16 @@ router.put('/ideas/:id/monthly', requireAuth, requireRole('USER', 'FA_INPUT', 'M
   await assertCanAccessAsync(req, idea);
   const year = Number(idea.year);
   const ideaPotentialCr = Number(idea.potential_cr);
-
   const incoming = Array.isArray(req.body?.rows) ? req.body.rows : [];
   if (!incoming.length) throw new ApiError(400, 'Tidak ada data yang dikirim');
 
   const cleaned = incoming.map((row) => {
     const month = Number(row.month);
     if (!Number.isInteger(month) || month < 1 || month > 12) throw new ApiError(400, 'Bulan harus 1-12');
-    assertPeriodEditable(isMonthlyOpen(year, month), req);
-    return {
-      month,
-      budget: numField(row.budget, `Budget bulan ${month}`),
+     assertPeriodEditable(isMonthInEffectivity(year, month, idea.effectivity_start, idea.effectivity_end) && isMonthlyOpen(year, month), req);
+     return {
+       month,
+       budget: numField(row.budget, `Budget bulan ${month}`),
       actualCost: numField(row.actualCost, `Actual biaya bulan ${month}`)
     };
   });

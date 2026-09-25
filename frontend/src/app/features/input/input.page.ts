@@ -72,6 +72,8 @@ export class InputPage implements OnInit {
   fName = signal('');
   fBudget = signal<number>(0);
   fPotentialCr = signal<number>(0);
+  fEffectivityStart = signal('');
+  fEffectivityEnd = signal('');
   fRemark = signal('');
   fDeptId = signal<string | null>(null);
 
@@ -168,6 +170,8 @@ export class InputPage implements OnInit {
     this.fName.set('');
     this.fBudget.set(0);
     this.fPotentialCr.set(0);
+    this.fEffectivityStart.set('');
+    this.fEffectivityEnd.set('');
     this.fRemark.set('');
     this.fDeptId.set(this.isMR ? (this.selectedDeptId() ?? this.departments()[0]?.id ?? null) : (this.auth.user()?.departmentId ?? null));
     this.modalOpen.set(true);
@@ -204,9 +208,11 @@ export class InputPage implements OnInit {
         await firstValueFrom(this.http.post('/api/ideas', {
           name: this.fName().trim(),
           budget: this.fBudget(),
-          potentialCr: this.fPotentialCr(),
-          remark: this.fRemark().trim() || null,
-          year: this.year(),
+           potentialCr: this.fPotentialCr(),
+           effectivityStart: this.fEffectivityStart(),
+           effectivityEnd: this.fEffectivityEnd(),
+           remark: this.fRemark().trim() || null,
+           year: this.year(),
           department_id: this.fDeptId()
         }));
       }

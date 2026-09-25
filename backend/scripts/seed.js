@@ -42,7 +42,10 @@ const MYSQL_DDL = [
     remark TEXT NULL,
     created_by INT NULL,
     created_at DATETIME NOT NULL,
-    updated_at DATETIME NOT NULL
+    updated_at DATETIME NOT NULL,
+    effectivity_start DATE NULL,
+    effectivity_end DATE NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'Efektif'
   ) ENGINE=InnoDB`,
   `CREATE TABLE IF NOT EXISTS idea_monthly (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -67,6 +70,9 @@ const MYSQL_DDL = [
     UNIQUE KEY uq_target (year, department_id, month),
     CONSTRAINT fk_tgt_dept FOREIGN KEY (department_id) REFERENCES departments(id)
   ) ENGINE=InnoDB`,
+  `ALTER TABLE ideas ADD COLUMN IF NOT EXISTS effectivity_start DATE NULL`,
+  `ALTER TABLE ideas ADD COLUMN IF NOT EXISTS effectivity_end DATE NULL`,
+  `ALTER TABLE ideas ADD COLUMN IF NOT EXISTS status VARCHAR(30) NOT NULL DEFAULT 'Efektif'`,
   `CREATE TABLE IF NOT EXISTS idea_potential_monthly (
     id INT AUTO_INCREMENT PRIMARY KEY,
     idea_id INT NOT NULL,
@@ -116,10 +122,13 @@ const MSSQL_TABLE_DDL = {
     name NVARCHAR(200) NOT NULL,
     budget DECIMAL(18,2) NOT NULL DEFAULT 0,
     potential_cr DECIMAL(18,2) NOT NULL DEFAULT 0,
-    remark NVARCHAR(MAX) NULL,
-    created_by INT NULL,
-    created_at DATETIME NOT NULL DEFAULT GETDATE(),
-    updated_at DATETIME NOT NULL DEFAULT GETDATE())`,
+     remark NVARCHAR(MAX) NULL,
+     created_by INT NULL,
+     created_at DATETIME NOT NULL DEFAULT GETDATE(),
+     updated_at DATETIME NOT NULL DEFAULT GETDATE(),
+     effectivity_start DATE NULL,
+     effectivity_end DATE NULL,
+     status VARCHAR(30) NOT NULL DEFAULT 'Efektif')`,
   [`${P}idea_monthly`]: `IF OBJECT_ID('dbo.${P}idea_monthly','U') IS NULL CREATE TABLE dbo.${P}idea_monthly (
     id INT IDENTITY(1,1) PRIMARY KEY,
     idea_id INT NOT NULL,

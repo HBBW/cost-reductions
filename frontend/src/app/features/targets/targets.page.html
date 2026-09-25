@@ -74,7 +74,7 @@
                       <input type="text" inputmode="decimal" autocomplete="off"
                              class="cell-input !min-w-0 w-full h-12 !text-sm font-semibold {{ editable() ? '' : 'opacity-60' }}"
                              [value]="item.idea.months[m] ? rupiahFmt.format(item.idea.months[m]) : ''"
-                             [disabled]="!editable()"
+                              [disabled]="!editable()"
                              [attr.data-row]="item.index" [attr.data-col]="m"
                              (input)="onMonth(item.index, m, $event)" />
                       @if (isDirtyMonth(item.index, m)) {
