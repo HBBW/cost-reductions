@@ -4,6 +4,7 @@ import { query, t } from '../db/index.js';
 import { ah } from '../utils/http.js';
 import { requireAuth, requireRole, resolveScope, deptFilter } from '../middlewares/auth.js';
 import { isMonthlyOpen, monthName, dateOnly } from '../utils/period.js';
+import { fetchTrend } from '../services/trend.js';
 
 const router = Router();
 
@@ -499,6 +500,7 @@ router.post('/report/export/dashboard', requireAuth, requireRole('FA', 'FA_READO
   const year = Number(req.body?.year) || new Date().getFullYear();
   const scope = await resolveScope(req, null);
   const { depts, totals } = await fetchDeptRecap(year, scope.deptIds);
+  const trend = await fetchTrend(year, scope.deptIds);
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'CR Monitor';
@@ -517,13 +519,11 @@ router.post('/report/export/dashboard', requireAuth, requireRole('FA', 'FA_READO
 
   ws.columns = [
     { width: 28 },
-    { width: 18 },
-    { width: 18 },
-    { width: 18 }
+    ...Array.from({ length: 12 }, () => ({ width: 14 }))
   ];
 
   // Judul
-  ws.mergeCells(1, 1, 1, 4);
+  ws.mergeCells(1, 1, 1, 13);
   const title = ws.getCell(1, 1);
   title.value = `Rekap Cost Reduction ${year} (Semua Departemen)`;
   title.font = { bold: true, size: 14, name: 'Calibri' };
@@ -582,12 +582,43 @@ router.post('/report/export/dashboard', requireAuth, requireRole('FA', 'FA_READO
     if (col > 1) cell.numFmt = '#,##0';
   });
 
+  // Metrik bulanan (mengikuti tabel Metrik di halaman Dashboard)
+  ws.addRow([]);
+  const metrikTitle = ws.addRow(['Metrik Bulanan']);
+  metrikTitle.getCell(1).font = { bold: true, size: 11, name: 'Calibri' };
+
+  const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  const metrikHeader = ws.addRow(['Metrik', ...SHORT_MONTHS]);
+  metrikHeader.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, name: 'Calibri' };
+    cell.fill = headerFill;
+    cell.border = baseBorder;
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+  });
+
+  const metrikRow = (label, values) => {
+    const row = ws.addRow([label, ...values]);
+    row.getCell(1).font = { bold: true, size: 9, name: 'Calibri' };
+    row.getCell(1).border = baseBorder;
+    for (let i = 0; i < 12; i++) {
+      const cell = row.getCell(2 + i);
+      cell.border = baseBorder;
+      cell.alignment = { horizontal: 'right', vertical: 'middle' };
+      if (typeof cell.value === 'number') cell.numFmt = '#,##0';
+    }
+    return row;
+  };
+
+  metrikRow('Actual CR', trend.months.map((m) => (m.future ? '-' : m.actual)));
+  metrikRow('Potential CR', trend.months.map((m) => m.potential));
+  const metrikYtdRow = metrikRow('YTD Actual CR', trend.months.map((m) => m.cumulative));
+
   // Grafik di bawah tabel (jika dikirim PNG)
   const imageData = req.body?.image;
   if (imageData && typeof imageData === 'string') {
     const b64 = imageData.replace(/^data:image\/png;base64,/, '');
     const imageId = wb.addImage({ base64: b64, extension: 'png' });
-    const startRow = totalRow.number + 2;
+    const startRow = metrikYtdRow.number + 2;
     ws.addImage(imageId, {
       tl: { col: 0, row: startRow - 1 },
       ext: { width: 900, height: 420 }
