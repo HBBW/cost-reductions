@@ -530,6 +530,29 @@ router.post('/report/export/dashboard', requireAuth, requireRole('FA', 'FA_READO
   title.alignment = { horizontal: 'center', vertical: 'middle' };
   ws.getRow(1).height = 26;
 
+  // Ringkasan KPI (mengikuti kartu di halaman Dashboard)
+  const kpiPotential = ws.addRow([`Potential CR / Tahun ${year}`, totals.potential]);
+  kpiPotential.getCell(1).font = { size: 10, name: 'Calibri', color: { argb: 'FF57534E' } };
+  kpiPotential.getCell(2).font = { bold: true, size: 12, name: 'Calibri' };
+  kpiPotential.getCell(2).numFmt = '#,##0';
+
+  const kpiPotentialSub = ws.addRow([`${totals.ideasCount} idea · ${depts.length} departemen`]);
+  kpiPotentialSub.getCell(1).font = { italic: true, size: 9, name: 'Calibri', color: { argb: 'FF78716C' } };
+
+  const kpiActual = ws.addRow([`Actual CR / Tahun ${year}`, totals.actual]);
+  kpiActual.getCell(1).font = { size: 10, name: 'Calibri', color: { argb: 'FF57534E' } };
+  kpiActual.getCell(2).font = { bold: true, size: 12, name: 'Calibri', color: { argb: 'FF166534' } };
+  kpiActual.getCell(2).numFmt = '#,##0';
+
+  const kpiActualSub = ws.addRow(['ringkasan seluruh departemen']);
+  kpiActualSub.getCell(1).font = { italic: true, size: 9, name: 'Calibri', color: { argb: 'FF78716C' } };
+
+  ws.addRow([]);
+
+  // Judul seksi tabel
+  const sectionRow = ws.addRow(['Rekap per Departemen']);
+  sectionRow.getCell(1).font = { bold: true, size: 11, name: 'Calibri' };
+
   // Header
   const headerRow = ws.addRow(['Departemen', 'Potential CR', 'Actual CR', 'Sisa Potential']);
   headerRow.eachCell((cell) => {
