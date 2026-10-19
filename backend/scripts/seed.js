@@ -12,8 +12,9 @@ import { config } from '../src/config.js';
  *              5 tabel : CR_ideas, CR_idea_monthly, CR_department_targets,
  *                        CR_user_credentials, CR_user_roles
  *              2 view  : CR_users, CR_departments (translasi HRIS)
- *            + bootstrap password bcrypt(BirthDate 'YYYY-MM-DD') untuk semua
- *              karyawan aktif ke CR_user_credentials.
+ *            + bootstrap password bcrypt(BirthDate 'YYYYMMDD' tanpa strip) untuk
+ *              semua karyawan aktif ke CR_user_credentials. Password default lama
+ *              (YYYY-MM-DD) yang belum diganti user ikut dimigrasi otomatis.
  *
  * Aman dijalankan berulang (idempotent) dan tidak pernah DROP data.
  */
@@ -54,6 +55,7 @@ const MYSQL_DDL = [
     potential_cr DECIMAL(18,2) NOT NULL DEFAULT 0,
     budget DECIMAL(18,2) NOT NULL DEFAULT 0,
     actual_cost DECIMAL(18,2) NOT NULL DEFAULT 0,
+    remark TEXT NULL,
     updated_by INT NULL,
     updated_at DATETIME NOT NULL,
     UNIQUE KEY uq_idea_month (idea_id, month),
@@ -73,6 +75,7 @@ const MYSQL_DDL = [
   `ALTER TABLE ideas ADD COLUMN IF NOT EXISTS effectivity_start DATE NULL`,
   `ALTER TABLE ideas ADD COLUMN IF NOT EXISTS effectivity_end DATE NULL`,
   `ALTER TABLE ideas ADD COLUMN IF NOT EXISTS status VARCHAR(30) NOT NULL DEFAULT 'Efektif'`,
+  `ALTER TABLE idea_monthly ADD COLUMN IF NOT EXISTS remark TEXT NULL`,
   `CREATE TABLE IF NOT EXISTS idea_potential_monthly (
     id INT AUTO_INCREMENT PRIMARY KEY,
     idea_id INT NOT NULL,
@@ -136,6 +139,7 @@ const MSSQL_TABLE_DDL = {
     potential_cr DECIMAL(18,2) NOT NULL DEFAULT 0,
     budget DECIMAL(18,2) NOT NULL DEFAULT 0,
     actual_cost DECIMAL(18,2) NOT NULL DEFAULT 0,
+    remark NVARCHAR(MAX) NULL,
     updated_by INT NULL,
     updated_at DATETIME NOT NULL DEFAULT GETDATE(),
     CONSTRAINT ${P ? P.replace(/_/g, '') : 'CR'}_uq_idea_month UNIQUE (idea_id, month))`,
@@ -157,6 +161,11 @@ const MSSQL_TABLE_DDL = {
     updated_at DATETIME NOT NULL DEFAULT GETDATE(),
     CONSTRAINT ${P ? P.replace(/_/g, '') : 'CR'}_uq_idea_potential UNIQUE (idea_id, month))`
 };
+
+/** Migrasi idempotent untuk tabel existing (dijalankan setiap kali seed). */
+const MSSQL_MIGRATIONS = [
+  `IF COL_LENGTH('dbo.${P}idea_monthly','remark') IS NULL ALTER TABLE dbo.${P}idea_monthly ADD remark NVARCHAR(MAX) NULL`
+];
 
 const MSSQL_VIEW_DDL = {
   [`${P}departments`]: `CREATE OR ALTER VIEW dbo.${P}departments AS
@@ -247,23 +256,44 @@ async function seedMssql() {
     console.log(`  view   ~ ${name} (definisi diperbarui)`);
   }
 
-  /* ---- Bootstrap password bcrypt(BirthDate YYYY-MM-DD) ---- */
-  const employees = await rows(`
-    SELECT Id_Employee, CONVERT(varchar(10), BirthDate, 23) AS birthdate
-    FROM hris_Employee
-    WHERE is_Active = '1' AND BirthDate IS NOT NULL`);
-  let bootstrapped = 0;
-  for (const emp of employees) {
-    const hash = await bcrypt.hash(emp.birthdate, 10);
-    await exec(
-      `IF NOT EXISTS (SELECT 1 FROM dbo.${P}user_credentials WHERE employee_id = @p1)
-       INSERT INTO dbo.${P}user_credentials (employee_id, password_hash, updated_at)
-       VALUES (@p1, @p2, GETDATE())`,
-      [emp.Id_Employee, hash]
-    );
-    bootstrapped++;
+  /* ---- Migrasi kolom baru pada tabel existing (idempotent) ---- */
+  for (const stmt of MSSQL_MIGRATIONS) {
+    await exec(stmt);
+    console.log('  migrasi ~ kolom baru dicek/ditambahkan');
   }
-  console.log(`Bootstrap password (BirthDate): ${bootstrapped} karyawan aktif.`);
+
+  /* ---- Bootstrap password bcrypt(BirthDate 'YYYYMMDD' tanpa strip) ----
+     Password default lama (format YYYY-MM-DD) dimigrasi otomatis bila
+     belum pernah diganti user. */
+  const employees = await rows(`
+    SELECT e.Id_Employee,
+           CONVERT(varchar(10), e.BirthDate, 23) AS birthdate_dashed,
+           CONVERT(varchar(8), e.BirthDate, 112) AS birthdate_compact,
+           c.password_hash
+    FROM hris_Employee e
+    LEFT JOIN dbo.${P}user_credentials c ON c.employee_id = e.Id_Employee
+    WHERE e.is_Active = '1' AND e.BirthDate IS NOT NULL`);
+  let bootstrapped = 0;
+  let migrated = 0;
+  for (const emp of employees) {
+    if (!emp.password_hash) {
+      const hash = await bcrypt.hash(emp.birthdate_compact, 10);
+      await exec(
+        `INSERT INTO dbo.${P}user_credentials (employee_id, password_hash, updated_at)
+         VALUES (@p1, @p2, GETDATE())`,
+        [emp.Id_Employee, hash]
+      );
+      bootstrapped++;
+    } else if (await bcrypt.compare(emp.birthdate_dashed, emp.password_hash)) {
+      const hash = await bcrypt.hash(emp.birthdate_compact, 10);
+      await exec(
+        `UPDATE dbo.${P}user_credentials SET password_hash = @p2, updated_at = GETDATE() WHERE employee_id = @p1`,
+        [emp.Id_Employee, hash]
+      );
+      migrated++;
+    }
+  }
+  console.log(`Bootstrap password (BirthDate YYYYMMDD): ${bootstrapped} karyawan baru, ${migrated} migrasi dari format lama.`);
 
   /* ---- Role awal: KOSONG (semua USER). MR/FA diatur manual, contoh: ----
      INSERT INTO dbo.CR_user_roles (employee_id, role) VALUES (123, 'MR');

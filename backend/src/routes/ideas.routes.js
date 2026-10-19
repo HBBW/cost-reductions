@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { query, run, withTransaction, t } from '../db/index.js';
 import { ApiError, ah } from '../utils/http.js';
 import { requireAuth, requireRole, resolveScope, deptFilter, assertPeriodEditable } from '../middlewares/auth.js';
-import { isMonthlyOpen, isIdeaOpen, isMonthInEffectivity } from '../utils/period.js';
+import { isMonthlyOpen, isIdeaOpen, isMonthInEffectivity, dateOnly } from '../utils/period.js';
 
 const router = Router();
 
@@ -72,8 +72,8 @@ router.get('/ideas', requireAuth, ah(async (req, res) => {
     potentialCr: Number(r.potential_cr),
     actual: Number(r.actual),
      remark: r.remark,
-     effectivityStart: r.effectivity_start,
-     effectivityEnd: r.effectivity_end,
+     effectivityStart: dateOnly(r.effectivity_start),
+     effectivityEnd: dateOnly(r.effectivity_end),
      status: r.status || 'Efektif',
      monthsFilled: Number(r.months_filled)
   })));
@@ -160,7 +160,7 @@ router.get('/ideas/:id/monthly', requireAuth, ah(async (req, res) => {
   await assertCanAccessAsync(req, idea);
 
   const rows = await query(
-    `SELECT month, potential_cr, budget, actual_cost, updated_at FROM ${t('idea_monthly')} WHERE idea_id = ? ORDER BY month`,
+    `SELECT month, potential_cr, budget, actual_cost, remark, updated_at FROM ${t('idea_monthly')} WHERE idea_id = ? ORDER BY month`,
     [idea.id]
   );
   const byMonth = new Map(rows.map((r) => [Number(r.month), r]));
@@ -189,6 +189,7 @@ router.get('/ideas/:id/monthly', requireAuth, ah(async (req, res) => {
       budget,
       actualCost: cost,
        actualCr: Math.round((budget - cost) * 100) / 100,
+       remark: r ? r.remark : null,
        filled: Boolean(r),
        status: !isMonthInEffectivity(Number(idea.year), m, idea.effectivity_start, idea.effectivity_end) || !isMonthlyOpen(Number(idea.year), m) ? 'Locked' : r ? 'Efektif' : 'Belum Efektif',
        updatedAt: r ? r.updated_at : null
@@ -237,7 +238,8 @@ router.put('/ideas/:id/monthly', requireAuth, requireRole('USER', 'FA_INPUT', 'M
      return {
        month,
        budget: numField(row.budget, `Budget bulan ${month}`),
-      actualCost: numField(row.actualCost, `Actual biaya bulan ${month}`)
+      actualCost: numField(row.actualCost, `Actual biaya bulan ${month}`),
+      remark: strField(row.remark, `Remark bulan ${month}`, 2000)
     };
   });
 
@@ -246,16 +248,15 @@ router.put('/ideas/:id/monthly', requireAuth, requireRole('USER', 'FA_INPUT', 'M
       const existing = await q(`SELECT id FROM ${t('idea_monthly')} WHERE idea_id = ? AND month = ?`, [idea.id, row.month]);
       if (existing[0]) {
         await r(
-          `UPDATE ${t('idea_monthly')} SET potential_cr = ?, budget = ?, actual_cost = ?, updated_by = ?, updated_at = ?
+          `UPDATE ${t('idea_monthly')} SET potential_cr = ?, budget = ?, actual_cost = ?, remark = ?, updated_by = ?, updated_at = ?
            WHERE id = ?`,
-          [ideaPotentialCr, row.budget, row.actualCost, req.user.id, new Date(), Number(existing[0].id)]
+          [ideaPotentialCr, row.budget, row.actualCost, row.remark, req.user.id, new Date(), Number(existing[0].id)]
         );
-      } else if (row.budget !== 0 || row.actualCost !== 0) {
-        // Jangan buat baris kosong (budget & actual keduanya 0)
+      } else if (row.budget !== 0 || row.actualCost !== 0 || row.remark) {
         await r(
-          `INSERT INTO ${t('idea_monthly')} (idea_id, month, potential_cr, budget, actual_cost, updated_by, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [idea.id, row.month, ideaPotentialCr, row.budget, row.actualCost, req.user.id, new Date()]
+          `INSERT INTO ${t('idea_monthly')} (idea_id, month, potential_cr, budget, actual_cost, remark, updated_by, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [idea.id, row.month, ideaPotentialCr, row.budget, row.actualCost, row.remark, req.user.id, new Date()]
         );
       }
     }

@@ -82,7 +82,8 @@
                               <th class="border-r border-hairline px-3 py-1 text-right font-medium text-muted">Budget</th>
                               <th class="border-r border-hairline px-3 py-1 text-right font-medium text-muted">Actual Biaya</th>
                               <th class="border-r border-hairline px-3 py-1 text-right font-medium text-muted">Potential CR</th>
-                              <th class="px-3 py-1 text-right font-medium text-muted">Actual CR</th>
+                              <th class="border-r border-hairline px-3 py-1 text-right font-medium text-muted">Actual CR</th>
+                              <th class="px-3 py-1 text-left font-medium text-muted">Remark</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -92,9 +93,10 @@
                                 <td class="border-r border-hairline tnum px-3 py-1 text-right text-muted">{{ fmt(m.budget) }}</td>
                                 <td class="border-r border-hairline tnum px-3 py-1 text-right text-muted">{{ fmt(m.actualCost) }}</td>
                                 <td class="border-r border-hairline tnum px-3 py-1 text-right text-muted">{{ fmt(m.potential) }}</td>
-                                <td class="tnum table-cell-num px-3 py-1 font-semibold"
+                                <td class="tnum table-cell-num border-r border-hairline px-3 py-1 font-semibold"
                                     [class.text-forest]="m.actualCr >= 0"
                                     [class.text-rust]="m.actualCr < 0">{{ fmt(m.actualCr) }}</td>
+                                <td class="max-w-[16rem] px-3 py-1 text-muted whitespace-normal break-words">{{ m.remark || '—' }}</td>
                               </tr>
                             }
                           </tbody>

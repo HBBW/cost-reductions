@@ -190,6 +190,34 @@ input[type="number"] {
     cursor: not-allowed;
   }
 
+  /* Sel entry grid untuk teks bebas (remark bulanan) — rata kiri */
+  .cell-text {
+    display: block;
+    width: 100%;
+    height: 38px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background-color: var(--color-surface);
+    padding: 0 0.5rem;
+    font-size: 0.875rem;
+    text-align: left;
+    color: var(--color-ink);
+    outline: none;
+    transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+  }
+  .cell-text:hover:not(:focus):not(:disabled) {
+    border-color: var(--color-hairline);
+  }
+  .cell-text:focus {
+    border-color: var(--color-ink);
+    box-shadow: 0 0 0 3px rgba(28, 25, 23, 0.12);
+  }
+  .cell-text:disabled {
+    background-color: var(--color-paper);
+    color: var(--color-faint);
+    cursor: not-allowed;
+  }
+
   /* Peringatan lunak: sel melebihi target potential CR per bulan (tetap bisa diisi) */
   .cell-warning {
     background-color: #FFF7ED;

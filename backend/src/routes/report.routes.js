@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs';
 import { query, t } from '../db/index.js';
 import { ah } from '../utils/http.js';
 import { requireAuth, requireRole, resolveScope, deptFilter } from '../middlewares/auth.js';
-import { isMonthlyOpen, monthName } from '../utils/period.js';
+import { isMonthlyOpen, monthName, dateOnly } from '../utils/period.js';
 
 const router = Router();
 
@@ -12,15 +12,20 @@ async function fetchDetail(year, deptIds) {
   let sql = `
     SELECT d.name AS department_name, i.id AS idea_id, i.name AS idea_name,
            i.remark, i.effectivity_start, i.effectivity_end, i.status,
-            COALESCE(im.month, pm.month) AS month, im.budget, im.actual_cost,
+            m.month, im.budget, im.actual_cost, im.remark AS month_remark,
             pm.potential_amount
 
     FROM ${t('ideas')} i
     JOIN ${t('departments')} d ON d.id = i.department_id
-     LEFT JOIN ${t('idea_potential_monthly')} pm ON pm.idea_id = i.id
-     LEFT JOIN ${t('idea_monthly')} im ON im.idea_id = i.id AND im.month = pm.month
+     LEFT JOIN (
+       SELECT idea_id, month FROM ${t('idea_potential_monthly')}
+       UNION
+       SELECT idea_id, month FROM ${t('idea_monthly')}
+     ) m ON m.idea_id = i.id
+     LEFT JOIN ${t('idea_potential_monthly')} pm ON pm.idea_id = i.id AND pm.month = m.month
+     LEFT JOIN ${t('idea_monthly')} im ON im.idea_id = i.id AND im.month = m.month
     WHERE i.year = ?${deptFilter('i.department_id', deptIds).sql}`;
-  sql += ' ORDER BY d.name, i.id, im.month';
+  sql += ' ORDER BY d.name, i.id, m.month';
 
   const rows = await query(sql, params);
   const ideasMap = new Map();
@@ -31,8 +36,8 @@ async function fetchDetail(year, deptIds) {
         departmentName: r.department_name,
         name: r.idea_name,
          remark: r.remark,
-         effectivityStart: r.effectivity_start,
-         effectivityEnd: r.effectivity_end,
+         effectivityStart: dateOnly(r.effectivity_start),
+         effectivityEnd: dateOnly(r.effectivity_end),
          status: r.status || 'Efektif',
          months: [],
         actual: 0,
@@ -47,7 +52,7 @@ async function fetchDetail(year, deptIds) {
        const potentialCr = r.potential_amount != null ? Math.round(Number(r.potential_amount) * 100) / 100 : 0;
        const filled = r.budget != null || r.actual_cost != null;
        const status = potentialCr <= 0 ? 'Locked' : !isMonthlyOpen(year, Number(r.month)) ? 'Locked' : filled ? 'Efektif' : 'Belum Efektif';
-       idea.months.push({ month: Number(r.month), potential: potentialCr, budget, actualCost: cost, actualCr, status });
+       idea.months.push({ month: Number(r.month), potential: potentialCr, budget, actualCost: cost, actualCr, remark: r.month_remark ?? null, status });
       idea.actual += actualCr;
       idea.potentialTotal += potentialCr;
     }
@@ -130,16 +135,16 @@ router.get('/report/export/csv', requireAuth, requireRole('FA', 'FA_READONLY', '
   const scope = await resolveScope(req, req.query.department_id);
   const ideas = await fetchDetail(year, scope.deptIds);
 
-  const header = ['Departemen', 'Idea', 'Remark', 'Bulan', 'Potential CR', 'Budget', 'Actual Biaya', 'Actual CR'];
+  const header = ['Departemen', 'Idea', 'Remark', 'Bulan', 'Potential CR', 'Budget', 'Actual Biaya', 'Actual CR', 'Remark Bulan'];
   const lines = [header.map(csvEscape).join(';')];
   for (const idea of ideas) {
     if (!idea.months.length) {
-      lines.push([idea.departmentName, idea.name, idea.remark, '-', 0, 0, 0, 0].map(csvEscape).join(';'));
+      lines.push([idea.departmentName, idea.name, idea.remark, '-', 0, 0, 0, 0, ''].map(csvEscape).join(';'));
     }
     for (const m of idea.months) {
       lines.push([
         idea.departmentName, idea.name, idea.remark,
-        monthName(m.month), m.potential, m.budget, m.actualCost, m.actualCr
+        monthName(m.month), m.potential, m.budget, m.actualCost, m.actualCr, m.remark
       ].map(csvEscape).join(';'));
     }
   }
@@ -265,6 +270,7 @@ router.get('/report/export/excel', requireAuth, requireRole('FA', 'FA_READONLY',
           cost: monthObj ? monthObj.actualCost : 0,
           pot: monthObj ? monthObj.potential : 0,
           actCr: monthObj ? monthObj.actualCr : 0,
+          remark: monthObj && monthObj.remark ? monthObj.remark : '',
           hasData: !!monthObj
         };
       });
@@ -282,12 +288,13 @@ router.get('/report/export/excel', requireAuth, requireRole('FA', 'FA_READONLY',
         deptMonthlyAct[idx] += m.actCr;
       });
 
-      // 4 Sub-baris per Idea: Budget, Actual Biaya, Potential CR, Actual CR
+      // 4 Sub-baris per Idea: Budget, Actual Biaya, Potential CR, Actual CR + Remark
       const subRows = [
         { ctrl: 'Budget', key: 'budget', bg: null, bold: false },
         { ctrl: 'Actual Biaya', key: 'cost', bg: null, bold: false },
         { ctrl: 'Potential CR', key: 'pot', bg: yellowFill, bold: false },
-        { ctrl: 'Actual CR', key: 'actCr', bg: yellowFill, bold: true }
+        { ctrl: 'Actual CR', key: 'actCr', bg: yellowFill, bold: true },
+        { ctrl: 'Remark', key: 'remark', bg: null, bold: false, text: true }
       ];
 
       subRows.forEach((sub, sIdx) => {
@@ -305,7 +312,7 @@ router.get('/report/export/excel', requireAuth, requireRole('FA', 'FA_READONLY',
          ];
 
         const addedRow = ws.addRow(rowVal);
-        addedRow.height = 18;
+        if (!sub.text) addedRow.height = 18;
 
         addedRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
           cell.border = baseBorder;
@@ -313,8 +320,12 @@ router.get('/report/export/excel', requireAuth, requireRole('FA', 'FA_READONLY',
 
            if (colNumber >= 8 && colNumber <= 19) {
              // Kolom Bulan
-             cell.numFmt = '#,##0';
-            cell.alignment = { horizontal: 'right', vertical: 'middle' };
+             if (sub.text) {
+               cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+             } else {
+               cell.numFmt = '#,##0';
+               cell.alignment = { horizontal: 'right', vertical: 'middle' };
+             }
             if (sub.bg) cell.fill = sub.bg;
 
             // Highlight merah jika Actual CR minus/ada kendala

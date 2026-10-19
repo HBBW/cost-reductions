@@ -41,6 +41,7 @@ export interface MonthlyRow {
   budget: number;
   actualCost: number;
   actualCr: number;
+  remark: string | null;
   filled: boolean;
   updatedAt: string | null;
 }
@@ -164,7 +165,7 @@ export interface DetailIdea {
   departmentName: string;
   name: string;
   remark: string | null;
-  months: { month: number; potential: number; budget: number; actualCost: number; actualCr: number }[];
+  months: { month: number; potential: number; budget: number; actualCost: number; actualCr: number; remark: string | null }[];
   /** Potential per bulan (target bulanan). */
   potentialCr: number;
   /** Potential YTD = potential per bulan × jumlah bulan terisi */

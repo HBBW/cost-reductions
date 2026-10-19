@@ -14,13 +14,16 @@ interface EditableRow {
   potentialCr: number;
   budget: number;
   actualCost: number;
+  remark: string;
   open: boolean;
   /** Row pernah diisi/simpan (agar nilai 0 tetap ditampilkan). */
   filled: boolean;
 }
 
-const FIELDS = ['budget', 'actualCost'] as const;
+const FIELDS = ['budget', 'actualCost', 'remark'] as const;
 type Field = (typeof FIELDS)[number];
+const NUM_FIELDS = ['budget', 'actualCost'] as const;
+type NumField = (typeof NUM_FIELDS)[number];
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -251,6 +254,7 @@ export class InputPage implements OnInit {
         potentialCr: m.potentialCr,
         budget: m.budget,
         actualCost: m.actualCost,
+        remark: m.remark ?? '',
         open: resp.lockedMonths[i]?.open ?? false,
         filled: m.filled
       }));
@@ -307,13 +311,13 @@ export class InputPage implements OnInit {
   }
 
   /** True bila budget/actualCost melebihi target potential CR per bulan. */
-  exceedsTarget(r: EditableRow, field: Field): boolean {
+  exceedsTarget(r: EditableRow, field: NumField): boolean {
     if (this.ideaAchieved()) return false;
     const target = this.monthly()?.idea.potentialCr ?? 0;
     return target > 0 && r[field] > target;
   }
 
-  onCell(index: number, field: Field, ev: Event) {
+  onCell(index: number, field: NumField, ev: Event) {
     const el = ev.target as HTMLInputElement;
     const raw = (el.value || '').trim();
     const v = parseRupiahInput(el.value);
@@ -321,6 +325,13 @@ export class InputPage implements OnInit {
     this.touched.update((s) => { const next = new Set(s); next.add(`${index}-${field}`); return next; });
     // Tampilkan "0" bila memang diketik nol; biarkan kosong bila input dikosongkan
     el.value = raw === '' ? '' : rupiahFmt.format(v);
+  }
+
+  onRemark(index: number, ev: Event) {
+    const el = ev.target as HTMLInputElement;
+    const value = el.value;
+    this.rows.update((rows) => rows.map((r, i) => (i === index ? { ...r, remark: value } : r)));
+    this.touched.update((s) => { const next = new Set(s); next.add(`${index}-remark`); return next; });
   }
 
   /** Nilai sel input dalam format ribuan; tampilkan "0" bila bulan sudah terisi. */
@@ -339,7 +350,7 @@ export class InputPage implements OnInit {
       .map((r, i) => ({
         month: r.month,
         include: this.editable(r) && FIELDS.some((f) => r[f] !== base[i]?.[f] || touchedSet.has(`${i}-${f}`)),
-        values: { budget: r.budget, actualCost: r.actualCost }
+        values: { budget: r.budget, actualCost: r.actualCost, remark: r.remark.trim() || null }
       }))
       .filter((x) => x.include)
       .map((x) => ({ month: x.month, ...x.values }));
@@ -372,6 +383,7 @@ export class InputPage implements OnInit {
         potentialCr: m.potentialCr,
         budget: m.budget,
         actualCost: m.actualCost,
+        remark: m.remark ?? '',
         open: resp.lockedMonths[i]?.open ?? false,
         filled: m.filled
       }));

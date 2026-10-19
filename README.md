@@ -26,9 +26,10 @@ departemen tampil real-time, dan laporan dapat diunduh kapan saja.
 1. **Actual CR tidak pernah disimpan** — selalu `budget − actual_cost`, dihitung di query.
    Tidak ada lagi risiko rumus Excel terhapus/berubah.
 2. **Batas waktu (dienforcement di server):**
-   - Target tahunan: bisa diisi s/d **18 Februari** tahun berjalan
-   - Data bulanan bulan M: dapat diisi **tanggal 18 bulan M sampai 18 bulan M+1**
-     (satu jendela per bulan, berurutan — tidak ada dua bulan terbuka sekaligus)
+   - Target tahunan: bisa diisi s/d **19 Februari** tahun berjalan
+   - Data bulanan bulan M: dapat diisi **tanggal 20 bulan M sampai 19 bulan M+1**
+     (satu jendela per bulan, berurutan — tidak ada dua bulan terbuka sekaligus;
+     jadi saat ini yang terbuka umumnya adalah bulan sebelumnya)
    - Di luar jendela terkunci untuk USER; hanya **MR** yang dapat mengoreksi,
      dan penghapusan idea juga khusus MR
 3. **Status kelengkapan** per departemen per bulan = semua idea non-CANCEL sudah punya

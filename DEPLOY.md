@@ -86,7 +86,7 @@ Collision OK: tidak ada objek CR_* bentrok.
   tabel  + CR_department_targets
   view   + CR_departments
   view   + CR_users
-Bootstrap password (BirthDate): N karyawan aktif.
+Bootstrap password (BirthDate YYYYMMDD): N karyawan baru, M migrasi dari format lama.
 ```
 
 > ⚠️ Jika muncul "Collision GAGAL" → ada objek `CR_*` sudah ada. Jika itu
@@ -172,7 +172,7 @@ Akses dari PC lain: `http://<IP-SERVER>:3000`
 | # | Skenario | Harus |
 |---|---|---|
 | 1 | Buka dari PC lain | Halaman login tampil |
-| 2 | Login MR (NIP + password BirthDate `YYYY-MM-DD`) | Masuk dashboard |
+| 2 | Login MR (NIP + password BirthDate `YYYYMMDD`) | Masuk dashboard |
 | 3 | Klik Target Tahunan | Data langsung tampil |
 | 4 | USER isi data bulan berjalan | Format ribuan `90.000.000`, tersimpan |
 | 5 | USER coba isi bulan terkunci | 403 terkunci |
@@ -184,7 +184,7 @@ Akses dari PC lain: `http://<IP-SERVER>:3000`
 
 ## 10. Update Password Awal
 
-Password awal = tanggal lahir (`YYYY-MM-DD`). Sarankan karyawan segera ganti.
+Password awal = tanggal lahir **tanpa strip** (`YYYYMMDD`, contoh `19900131`). Sarankan karyawan segera ganti.
 Untuk reset password seseorang ke BirthDate lagi:
 
 ```sql
