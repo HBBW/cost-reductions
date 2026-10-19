@@ -1,7 +1,7 @@
 /**
  * Aturan periode input:
  * - Data bulanan bulan M dapat diisi mulai tanggal 20 bulan M
- *   sampai tanggal 19 bulan M+1 (satu bulan setelahnya).
+ *   sampai tanggal 20 bulan M+1 (satu bulan setelahnya).
  *   Jadi yang terbuka saat ini adalah bulan sebelumnya (mis. awal Oktober
  *   yang terbuka adalah September).
  *   Setelah deadline, terkunci untuk USER; MR tetap dapat mengoreksi.
@@ -44,11 +44,11 @@ export function monthlyOpenStart(year, month) {
   return new Date(year, month - 1, 20, 0, 0, 0, 0);
 }
 
-/** Akhir input bulan M: tanggal 19 bulan M+1. */
+/** Akhir input bulan M: tanggal 20 bulan M+1. */
 export function monthlyLockDate(year, month) {
   const nextMonth = month === 12 ? 1 : month + 1;
   const nextYear = month === 12 ? year + 1 : year;
-  return endOfDay(nextYear, nextMonth, 19);
+  return endOfDay(nextYear, nextMonth, 20);
 }
 
 export function monthlyDeadlineLabel(year, month) {

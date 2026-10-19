@@ -110,21 +110,22 @@
               @if (allMonthsLocked()) {
                 <div class="border-b border-hairline bg-ochre-tint/60 px-6 py-2.5 text-xs text-ink-soft">
                   Semua bulan saat ini <strong>terkunci</strong> — setiap bulan dapat diisi
-                  <strong>tanggal 20 bulan itu sampai 19 bulan berikutnya</strong>. Hubungi MR untuk koreksi.
+                  <strong>tanggal 20 bulan itu sampai 20 bulan berikutnya</strong>. Hubungi MR untuk koreksi.
                 </div>
               }
 
               <div class="px-6 pb-2 pt-4">
-                <table class="min-w-full text-sm">
+                <div class="overflow-x-auto pb-1">
+                  <table class="w-full min-w-[880px] text-sm">
                   <thead>
                     <tr class="text-left">
-                      <th class="mlabel sticky top-14 z-20 border-b border-hairline bg-surface pb-2 pr-4 font-medium">Bulan</th>
-                      <th class="mlabel sticky top-14 z-20 border-b border-hairline bg-surface px-3 pb-2 text-right font-medium">Budget/Bulan</th>
-                      <th class="mlabel sticky top-14 z-20 border-b border-hairline bg-surface px-3 pb-2 text-right font-medium">Actual Biaya</th>
-                      <th class="mlabel sticky top-14 z-20 border-b border-hairline bg-surface px-3 pb-2 text-right font-medium text-faint">Potential CR</th>
-                      <th class="mlabel sticky top-14 z-20 border-b border-hairline bg-surface px-3 pb-2 text-right font-medium">Actual CR</th>
-                      <th class="mlabel sticky top-14 z-20 border-b border-hairline bg-surface pl-3 pb-2 font-medium">Remark</th>
-                      <th class="sticky top-14 z-20 border-b border-hairline bg-surface pl-3 pb-2"></th>
+                      <th class="mlabel border-b border-hairline bg-surface pb-2 pr-4 font-medium">Bulan</th>
+                      <th class="mlabel border-b border-hairline bg-surface px-3 pb-2 text-right font-medium">Budget/Bulan</th>
+                      <th class="mlabel border-b border-hairline bg-surface px-3 pb-2 text-right font-medium">Actual Biaya</th>
+                      <th class="mlabel border-b border-hairline bg-surface px-3 pb-2 text-right font-medium text-faint">Potential CR</th>
+                      <th class="mlabel border-b border-hairline bg-surface px-3 pb-2 text-right font-medium">Actual CR</th>
+                      <th class="mlabel border-b border-hairline bg-surface pl-3 pb-2 font-medium">Remark</th>
+                      <th class="border-b border-hairline bg-surface pl-3 pb-2"></th>
                     </tr>
                   </thead>
                   <tbody gridNav>
@@ -202,10 +203,11 @@
                     </tr>
                   </tfoot>
                 </table>
+                </div>
 
                 @if (!isMR) {
                   <p class="mt-3 text-xs text-faint">
-                    Bulan dapat diisi mulai <strong>tanggal 20 bulan itu sampai tanggal 19 bulan berikutnya</strong>;
+                    Bulan dapat diisi mulai <strong>tanggal 20 bulan itu sampai tanggal 20 bulan berikutnya</strong>;
                     setelah itu terkunci, hubungi MR untuk koreksi.
                   </p>
                 }

@@ -21,7 +21,7 @@ router.get('/meta', requireAuth, ah(async (req, res) => {
     years,
     today: new Date().toISOString().slice(0, 10),
     deadline: {
-      monthlyInfo: 'Data bulan berjalan dapat diisi sampai tanggal 19 bulan berikutnya',
+      monthlyInfo: 'Data bulan berjalan dapat diisi sampai tanggal 20 bulan berikutnya',
       exampleLabel: monthlyDeadlineLabel(year, new Date().getMonth() + 1),
       targetLabel: `19 Februari ${year}`
     }
