@@ -218,21 +218,6 @@ input[type="number"] {
     cursor: not-allowed;
   }
 
-  /* Peringatan lunak: sel melebihi target potential CR per bulan (tetap bisa diisi) */
-  .cell-warning {
-    background-color: #FFF7ED;
-    border-color: #F59E0B;
-    color: var(--color-ink);
-  }
-  .cell-warning:focus {
-    border-color: #D97706;
-    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
-  }
-  .cell-warning:disabled {
-    background-color: #FFF7ED;
-    color: var(--color-faint);
-  }
-
   .btn {
     display: inline-flex;
     align-items: center;

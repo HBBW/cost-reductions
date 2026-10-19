@@ -135,32 +135,20 @@
                         <td class="relative px-3 py-0.5">
                           @if (isCellDirty(i, 'budget')) { <span class="absolute top-1/2 -left-0.5 -translate-y-1/2 h-5 w-[3px] rounded-full bg-amber-500"></span> }
                           <input type="text" inputmode="decimal" autocomplete="off"
-                                 class="cell-input {{ exceedsTarget(r, 'budget') ? 'cell-warning' : '' }}"
+                                 class="cell-input"
                                  [value]="fmtCell(r, 'budget')"
                                  [disabled]="!editable(r)"
                                  [attr.data-row]="i" data-col="0"
-                                 [title]="exceedsTarget(r, 'budget') ? 'Melebihi target potential CR per bulan (' + rupiahFmt.format(potentialPerMonth()) + ')' : ''"
                                  (input)="onCell(i, 'budget', $event)" />
-                          @if (exceedsTarget(r, 'budget')) {
-                            <span class="absolute top-0.5 right-0.5 text-amber-600" [title]="'Melebihi target potential CR per bulan (' + rupiahFmt.format(potentialPerMonth()) + ')'">
-                              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
-                            </span>
-                          }
                         </td>
                         <td class="relative px-3 py-0.5">
                           @if (isCellDirty(i, 'actualCost')) { <span class="absolute top-1/2 -left-0.5 -translate-y-1/2 h-5 w-[3px] rounded-full bg-amber-500"></span> }
                           <input type="text" inputmode="decimal" autocomplete="off"
-                                 class="cell-input {{ exceedsTarget(r, 'actualCost') ? 'cell-warning' : '' }}"
+                                 class="cell-input"
                                  [value]="fmtCell(r, 'actualCost')"
                                  [disabled]="!editable(r)"
                                  [attr.data-row]="i" data-col="1"
-                                 [title]="exceedsTarget(r, 'actualCost') ? 'Melebihi target potential CR per bulan (' + rupiahFmt.format(potentialPerMonth()) + ')' : ''"
                                  (input)="onCell(i, 'actualCost', $event)" />
-                          @if (exceedsTarget(r, 'actualCost')) {
-                            <span class="absolute top-0.5 right-0.5 text-amber-600" [title]="'Melebihi target potential CR per bulan (' + rupiahFmt.format(potentialPerMonth()) + ')'">
-                              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
-                            </span>
-                          }
                         </td>
                         <td class="px-3 py-0.5">
                           <span class="tnum inline-block w-32 rounded-md bg-slate-50 px-2 py-1.5 text-right text-sm text-faint">{{ fmtCell(r, 'potentialCr') }}</span>

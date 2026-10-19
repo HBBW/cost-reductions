@@ -297,26 +297,6 @@ export class InputPage implements OnInit {
     return this.rows()[i]?.[field] !== this.baseline()[i]?.[field];
   }
 
-  /** Target potential CR per bulan untuk ditampilkan di tooltip. */
-  potentialPerMonth(): number {
-    return this.monthly()?.idea.potentialCr ?? 0;
-  }
-
-  /** Actual CR YTD (akumulasi bulan terisi) sudah mencapai/melampaui target potential CR tahunan. */
-  ideaAchieved(): boolean {
-    const idea = this.monthly()?.idea;
-    if (!idea || idea.potentialCr <= 0) return false;
-    const totalActual = this.rows().reduce((s, r) => s + this.rowActualCr(r), 0);
-    return totalActual >= idea.potentialCr;
-  }
-
-  /** True bila budget/actualCost melebihi target potential CR per bulan. */
-  exceedsTarget(r: EditableRow, field: NumField): boolean {
-    if (this.ideaAchieved()) return false;
-    const target = this.monthly()?.idea.potentialCr ?? 0;
-    return target > 0 && r[field] > target;
-  }
-
   onCell(index: number, field: NumField, ev: Event) {
     const el = ev.target as HTMLInputElement;
     const raw = (el.value || '').trim();
