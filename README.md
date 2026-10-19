@@ -34,6 +34,9 @@ departemen tampil real-time, dan laporan dapat diunduh kapan saja.
      dan penghapusan idea juga khusus MR
 3. **Status kelengkapan** per departemen per bulan = semua idea non-CANCEL sudah punya
    data bulanan tsb → MR/FA tinggal buka halaman *Monitoring Status*.
+4. **Pengingat email otomatis** (opsional, butuh SMTP): tiap **tanggal 12 pukul 08:00 WIB**
+   sistem mengirim rekap departemen yang belum lengkap untuk bulan yang sedang terbuka
+   ke semua user MR/FA (email dari HRIS via view `CR_users`). Lihat `DEPLOY.md` §11.
 
 ## Struktur Proyek
 

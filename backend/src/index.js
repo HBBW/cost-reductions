@@ -1,5 +1,6 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
+import cron from 'node-cron';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,7 +11,9 @@ import ideaRoutes from './routes/ideas.routes.js';
 import targetRoutes from './routes/targets.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 import reportRoutes from './routes/report.routes.js';
+import emailRoutes from './routes/emails.routes.js';
 import { notFound } from './utils/http.js';
+import { sendReminder } from './services/reminder.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -25,6 +28,7 @@ app.use('/api', ideaRoutes);
 app.use('/api/targets', targetRoutes);
 app.use('/api', dashboardRoutes);
 app.use('/api', reportRoutes);
+app.use('/api', emailRoutes);
 
 app.use('/api', notFound);
 
@@ -69,3 +73,22 @@ app.use((err, _req, res, _next) => {
 app.listen(config.port, () => {
   console.log(`CR Monitor API berjalan di http://localhost:${config.port} (db: ${config.dbClient})`);
 });
+
+/* Pengingat email otomatis: default pukul 08:00 tanggal 12 setiap bulan (Asia/Jakarta). */
+if (config.reminder.cron && cron.validate(config.reminder.cron)) {
+  cron.schedule(config.reminder.cron, async () => {
+    try {
+      const result = await sendReminder();
+      console.log('[reminder] dijalankan:', new Date().toISOString(), JSON.stringify({
+        sent: result.sent,
+        reason: result.reason,
+        recipients: result.recipients?.length ?? 0
+      }));
+    } catch (err) {
+      console.error('[reminder] gagal:', err.message || err);
+    }
+  }, { timezone: config.reminder.timezone });
+  console.log(`[reminder] Email pengingat terjadwal: "${config.reminder.cron}" (${config.reminder.timezone})`);
+} else if (config.reminder.cron) {
+  console.warn(`[reminder] Jadwal tidak valid: "${config.reminder.cron}" — pengingat email nonaktif.`);
+}

@@ -4,17 +4,17 @@
     <div class="mx-auto flex h-14 max-w-[1240px] items-center justify-between gap-4 px-4 sm:px-6">
       <a routerLink="/dashboard" class="flex shrink-0 items-baseline gap-2" (click)="closeMenu()">
         <span class="font-display text-lg font-semibold tracking-tight text-ink">CR<span class="text-forest">·</span>Monitor</span>
-        <span class="hidden text-[10px] font-semibold tracking-[0.14em] text-faint uppercase sm:inline">Cost Reduction</span>
+        <span class="hidden text-[10px] font-semibold tracking-[0.14em] text-faint uppercase xl:inline">Cost Reduction</span>
       </a>
 
       <!-- Desktop nav -->
-      <nav class="hidden md:flex items-center gap-0.5" aria-label="Navigasi utama">
+      <nav class="hidden lg:flex items-center gap-0.5" aria-label="Navigasi utama">
         @for (item of visibleItems(); track item.path) {
           <a
             [routerLink]="item.path"
             routerLinkActive="!text-ink after:scale-x-100"
             #rla="routerLinkActive"
-            class="relative shrink-0 rounded-md px-3 py-1.5 text-sm transition-colors after:absolute after:inset-x-3 after:-bottom-[13px] after:h-0.5 after:origin-left after:scale-x-0 after:bg-forest after:transition-transform after:duration-200"
+            class="relative shrink-0 whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm transition-colors xl:px-3 after:absolute after:inset-x-3 after:-bottom-[13px] after:h-0.5 after:origin-left after:scale-x-0 after:bg-forest after:transition-transform after:duration-200"
             [class.text-muted]="!rla.isActive"
             [class.hover:text-ink]="!rla.isActive"
             [class.font-semibold]="rla.isActive">
@@ -23,8 +23,8 @@
         }
       </nav>
 
-      <div class="hidden shrink-0 items-center gap-3 md:flex">
-        <div class="text-right leading-tight">
+      <div class="hidden shrink-0 items-center gap-3 lg:flex">
+        <div class="hidden text-right leading-tight xl:block">
           <p class="max-w-[160px] truncate text-sm font-medium text-ink">{{ auth.user()?.name }}</p>
           <p class="mlabel !text-[9.5px]">{{ roleLabel() }}</p>
         </div>
@@ -36,8 +36,8 @@
         </button>
       </div>
 
-      <!-- Mobile: user ringkas + hamburger -->
-      <div class="flex shrink-0 items-center gap-2 md:hidden">
+      <!-- Mobile/tablet: user ringkas + hamburger -->
+      <div class="flex shrink-0 items-center gap-2 lg:hidden">
         <span class="max-w-[110px] truncate text-sm font-medium text-ink">{{ auth.user()?.name }}</span>
         <button
           type="button"
@@ -56,7 +56,7 @@
 
     <!-- Mobile menu (smooth dropdown full-width, tetap satu halaman) -->
     <div
-      class="md:hidden overflow-hidden transition-all duration-300 ease-in-out"
+      class="lg:hidden overflow-hidden transition-all duration-300 ease-in-out"
       [class]="menuOpen() ? 'max-h-96 border-t border-hairline bg-paper opacity-100' : 'max-h-0 opacity-0'">
       <nav class="flex flex-col px-4 py-2 text-sm" aria-label="Navigasi mobile">
         @for (item of visibleItems(); track item.path) {

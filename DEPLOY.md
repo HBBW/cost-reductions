@@ -194,6 +194,45 @@ Lalu jalankan ulang bootstrap (bagian seed) atau insert manual hash baru.
 
 ---
 
+## 11. Pengingat Email Otomatis (opsional)
+
+Setiap **tanggal 12 pukul 08:00 WIB** backend mengirim email rekap departemen yang
+belum lengkap untuk bulan yang sedang terbuka (deadline tanggal 19) ke semua user
+MR/FA — alamat email diambil otomatis dari HRIS lewat view `CR_users`.
+Kosongkan `REMINDER_CRON` untuk menonaktifkan.
+
+Isi di `.env` (docker-compose membaca variabel yang sama):
+
+```bash
+TZ=Asia/Jakarta
+SMTP_HOST=smtp.bmc.co.id
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=cr-monitor@bmc.co.id
+SMTP_PASS=<password email>
+SMTP_FROM=CR Monitor <cr-monitor@bmc.co.id>
+REMINDER_TO=admin1@bmc.co.id,admin2@bmc.co.id   # opsional: tambahan di luar hasil HRIS
+REMINDER_APP_URL=https://costreduction.bmc.co.id
+HRIS_EMAIL_COLUMN=Email                          # nama kolom email di hris_Employee
+```
+
+Setelah update ini jalankan **`npm run seed` sekali** di server agar view
+`CR_users` ikut menambah kolom `email` (CREATE OR ALTER — aman diulang).
+
+> ⚠️ Jika hardening sudah dijalankan (CREATE VIEW dicabut dari `cr_app`), seed akan
+> gagal di bagian view. Sementara beri hak dulu sebagai `sa`:
+> `GRANT CREATE VIEW TO cr_app;` → `npm run seed` → `REVOKE CREATE VIEW FROM cr_app;`
+> (atau jalankan blok `CREATE OR ALTER VIEW dbo.CR_users ...` manual di SSMS).
+
+Uji:
+```bash
+npm run reminder             # pratinjau (tidak mengirim)
+npm run reminder -- --send   # kirim sungguhan
+# Docker: docker exec cr-monitor npm run reminder
+```
+
+---
+
 ## Rollback (darurat)
 
 Aplikasi hanya menambah objek `CR_*`. Rollback total:

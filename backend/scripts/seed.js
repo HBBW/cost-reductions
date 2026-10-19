@@ -32,6 +32,7 @@ const MYSQL_DDL = [
     name VARCHAR(100) NOT NULL,
     role ENUM('USER','FA','MR') NOT NULL,
     department_id INT NULL,
+    email VARCHAR(120) NULL,
     is_active TINYINT NOT NULL DEFAULT 1,
     CONSTRAINT fk_users_dept FOREIGN KEY (department_id) REFERENCES departments(id)
   ) ENGINE=InnoDB`,
@@ -72,10 +73,18 @@ const MYSQL_DDL = [
     UNIQUE KEY uq_target (year, department_id, month),
     CONSTRAINT fk_tgt_dept FOREIGN KEY (department_id) REFERENCES departments(id)
   ) ENGINE=InnoDB`,
+  `CREATE TABLE IF NOT EXISTS user_emails (
+    employee_id INT NOT NULL PRIMARY KEY,
+    email VARCHAR(200) NOT NULL,
+    updated_by INT NULL,
+    updated_at DATETIME NOT NULL,
+    CONSTRAINT fk_ue_user FOREIGN KEY (employee_id) REFERENCES users(id)
+  ) ENGINE=InnoDB`,
   `ALTER TABLE ideas ADD COLUMN IF NOT EXISTS effectivity_start DATE NULL`,
   `ALTER TABLE ideas ADD COLUMN IF NOT EXISTS effectivity_end DATE NULL`,
   `ALTER TABLE ideas ADD COLUMN IF NOT EXISTS status VARCHAR(30) NOT NULL DEFAULT 'Efektif'`,
   `ALTER TABLE idea_monthly ADD COLUMN IF NOT EXISTS remark TEXT NULL`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(120) NULL`,
   `CREATE TABLE IF NOT EXISTS idea_potential_monthly (
     id INT AUTO_INCREMENT PRIMARY KEY,
     idea_id INT NOT NULL,
@@ -101,6 +110,7 @@ const MSSQL_OBJECTS = {
   tables: [
     `${P}user_credentials`,
     `${P}user_roles`,
+    `${P}user_emails`,
     `${P}ideas`,
     `${P}idea_monthly`,
     `${P}department_targets`,
@@ -118,6 +128,11 @@ const MSSQL_TABLE_DDL = {
   [`${P}user_roles`]: `IF OBJECT_ID('dbo.${P}user_roles','U') IS NULL CREATE TABLE dbo.${P}user_roles (
     employee_id INT NOT NULL PRIMARY KEY,
     role VARCHAR(10) NOT NULL DEFAULT 'USER' CHECK (role IN ('USER','FA','MR')))`,
+  [`${P}user_emails`]: `IF OBJECT_ID('dbo.${P}user_emails','U') IS NULL CREATE TABLE dbo.${P}user_emails (
+    employee_id INT NOT NULL PRIMARY KEY,
+    email NVARCHAR(200) NOT NULL,
+    updated_by INT NULL,
+    updated_at DATETIME NOT NULL DEFAULT GETDATE())`,
   [`${P}ideas`]: `IF OBJECT_ID('dbo.${P}ideas','U') IS NULL CREATE TABLE dbo.${P}ideas (
     id INT IDENTITY(1,1) PRIMARY KEY,
     year SMALLINT NOT NULL,
@@ -173,19 +188,22 @@ SELECT RTRIM(mc.DepartID) AS id,
        RTRIM(mc.NamaDepartemen) AS name,
        CASE WHEN mc.TidakAktif = 'Y' THEN 0 ELSE 1 END AS is_active
 FROM dbo.MASCOSTCENTER mc
-WHERE RTRIM(mc.LevelDepartemen) = 'Departemen';`,
-  [`${P}users`]: `CREATE OR ALTER VIEW dbo.${P}users AS
+WHERE RTRIM(mc.LevelDepartemen) = 'Departemen';`
+};
+
+/** View CR_users — kolom email HRIS opsional (bergantung ada/tidaknya HRIS_EMAIL_COLUMN). */
+const mssqlUsersViewDdl = (withEmail) => `CREATE OR ALTER VIEW dbo.${P}users AS
 SELECT e.Id_Employee AS id,
        RTRIM(e.NIP) AS username,
        RTRIM(e.Name) AS name,
        ISNULL(r.role, 'USER') AS role,
        c.password_hash,
        CASE WHEN e.is_Active = '1' THEN 1 ELSE 0 END AS is_active,
-       RTRIM(e.DepartID) AS department_id
+       RTRIM(e.DepartID) AS department_id${withEmail ? `,
+       RTRIM(e.[${config.hrisEmailColumn}]) AS email` : ''}
 FROM dbo.hris_Employee e
 LEFT JOIN dbo.${P}user_roles r ON r.employee_id = e.Id_Employee
-LEFT JOIN dbo.${P}user_credentials c ON c.employee_id = e.Id_Employee;`
-};
+LEFT JOIN dbo.${P}user_credentials c ON c.employee_id = e.Id_Employee;`;
 
 async function ensureDatabaseMysql() {
   const conn = await mysql.createConnection({
@@ -234,14 +252,13 @@ async function seedMssql() {
     if (found.length) collisions.push(obj);
   }
   if (collisions.length === allObjects.length) {
-    console.log('Objek CR_* sudah ada sebelumnya — skip pembuatan, lanjut bootstrap password.');
-  } else if (collisions.length > 0) {
-    throw new Error(`Collision GAGAL: sebagian objek sudah ada → ${collisions.join(', ')}. Hapus manual atau sesuaikan prefix lalu ulangi.`);
+    console.log('Objek CR_* sudah ada semua — lanjut migrasi & bootstrap.');
   } else {
-    console.log('Collision OK: tidak ada objek CR_* bentrok.');
+    const missing = allObjects.filter((o) => !collisions.includes(o));
+    console.log(`Objek CR_*: ${collisions.length} sudah ada, ${missing.length} akan dibuat (${missing.join(', ')}).`);
   }
 
-  /* ---- Buat 5 tabel baru (hanya yang belum ada) ---- */
+  /* ---- Buat tabel baru (hanya yang belum ada) ---- */
   for (const name of MSSQL_OBJECTS.tables) {
     if (!collisions.includes(name)) {
       await exec(MSSQL_TABLE_DDL[name]);
@@ -249,8 +266,18 @@ async function seedMssql() {
     }
   }
 
-  /* ---- Buat / perbarui 2 view (selalu refresh definisi) ---- */
+  /* ---- Buat / perbarui view (selalu refresh definisi) ---- */
   for (const name of MSSQL_OBJECTS.views) {
+    if (name === `${P}users`) {
+      try {
+        await exec(mssqlUsersViewDdl(true));
+        console.log(`  view   ~ ${name} (dengan kolom email HRIS '${config.hrisEmailColumn}')`);
+      } catch {
+        await exec(mssqlUsersViewDdl(false));
+        console.log(`  view   ~ ${name} (tanpa email HRIS — kolom '${config.hrisEmailColumn}' tidak ada; atur email via menu Kelola Email)`);
+      }
+      continue;
+    }
     await exec(`IF OBJECT_ID('dbo.${name}','V') IS NOT NULL EXEC('DROP VIEW dbo.${name}')`);
     await exec(MSSQL_VIEW_DDL[name]);
     console.log(`  view   ~ ${name} (definisi diperbarui)`);

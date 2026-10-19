@@ -10,6 +10,7 @@ services:
     ports:
       - "3000:3000"
     environment:
+      - TZ=${TZ:-Asia/Jakarta}
       - DB_CLIENT=${DB_CLIENT:-mssql}
       - DB_TABLE_PREFIX=${DB_TABLE_PREFIX:-CR_}
       - MSSQL_HOST=${MSSQL_HOST}
@@ -21,5 +22,15 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRES=${JWT_EXPIRES:-8h}
       - PORT=${PORT:-3000}
+      - HRIS_EMAIL_COLUMN=${HRIS_EMAIL_COLUMN:-Email}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-}
+      - REMINDER_TO=${REMINDER_TO:-}
+      - REMINDER_APP_URL=${REMINDER_APP_URL:-https://costreduction.bmc.co.id}
+      - REMINDER_CRON=${REMINDER_CRON:-0 8 12 * *}
     extra_hosts:
       - "host.docker.internal:host-gateway"

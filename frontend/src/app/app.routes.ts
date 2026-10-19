@@ -45,6 +45,12 @@ export const routes: Routes = [
         canActivate: [roleGuard('FA', 'FA_READONLY', 'FA_INPUT', 'MR')],
         loadComponent: () => import('./features/laporan/laporan.page').then((m) => m.LaporanPage),
         title: 'Laporan — CR Monitor'
+      },
+      {
+        path: 'emails',
+        canActivate: [roleGuard('MR')],
+        loadComponent: () => import('./features/emails/emails.page').then((m) => m.EmailsPage),
+        title: 'Kelola Email — CR Monitor'
       }
     ]
   },

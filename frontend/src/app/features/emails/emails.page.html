@@ -1,0 +1,92 @@
+<div class="space-y-7">
+  <app-page-header title="Kelola Email"
+                   subtitle="Email pegawai untuk pengingat & notifikasi, dikelompokkan per departemen. Email yang diisi di sini menimpa email dari HRIS." />
+
+  <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
+    <label class="flex items-center gap-2 text-sm text-muted">
+      Departemen
+      <select class="select-base w-60" [value]="deptName()" (change)="deptName.set($any($event.target).value)">
+        <option value="">Semua Departemen</option>
+        @for (d of deptNames(); track d) { <option [value]="d">{{ d }}</option> }
+      </select>
+    </label>
+    <label class="flex items-center gap-2 text-sm text-muted">
+      Cari
+      <input type="text" class="input-base w-64" placeholder="Nama / NIP…"
+             [value]="query()" (input)="query.set($any($event.target).value)" />
+    </label>
+    <span class="text-xs text-faint">{{ filledCount() }} dari {{ users().length }} pegawai sudah punya email</span>
+  </div>
+
+  @if (notice()) {
+    <div class="fade-up flex items-center justify-between border-b border-forest/30 bg-forest-tint px-4 py-2.5 text-sm text-forest">
+      {{ notice() }}
+      <button class="text-forest/60 hover:text-forest" (click)="clearNotice()">✕</button>
+    </div>
+  }
+  @if (error()) {
+    <p class="rounded-md bg-rust-tint px-3 py-2 text-sm text-rust">{{ error() }}</p>
+  }
+
+  @if (loading()) {
+    <div class="rounded-xl border border-hairline bg-surface p-6">
+      <div class="skeleton h-6 w-48"></div>
+      <div class="skeleton mt-4 h-24 w-full"></div>
+    </div>
+  } @else {
+    @for (group of grouped(); track group.dept) {
+      <section class="fade-up">
+        <div class="mb-1 flex items-baseline justify-between border-b border-hairline pb-2">
+          <h2 class="font-display text-base font-semibold tracking-tight text-ink">{{ group.dept }}</h2>
+          <span class="mlabel">{{ group.users.length }} pegawai · {{ group.filled }} email terisi</span>
+        </div>
+
+        <div class="overflow-x-auto rounded-xl border border-hairline bg-surface">
+          <table class="w-full min-w-[720px] text-sm">
+            <thead>
+              <tr class="border-b border-hairline text-left">
+                <th class="mlabel px-4 py-2.5 font-medium">Nama</th>
+                <th class="mlabel w-28 px-3 py-2.5 font-medium">NIP</th>
+                <th class="mlabel w-24 px-3 py-2.5 font-medium">Role</th>
+                <th class="mlabel px-3 py-2.5 font-medium">Email</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (u of group.users; track u.id) {
+                <tr class="border-b border-hairline transition-colors last:border-0 hover:bg-surface/70"
+                    [class.bg-forest-tint/30]="isDirty(u)">
+                  <td class="px-4 py-2 font-medium text-ink whitespace-normal">{{ u.name }}</td>
+                  <td class="px-3 py-2 whitespace-nowrap text-ink-soft">{{ u.username }}</td>
+                  <td class="px-3 py-2"><span class="mlabel">{{ u.role }}</span></td>
+                  <td class="px-3 py-2">
+                    <div class="flex items-center gap-2">
+                      <input type="email" class="input-base max-w-72" placeholder="nama@bmc.co.id"
+                             [value]="emailOf(u)" (input)="onEdit(u, $event)" />
+                      @if (!isDirty(u) && u.source === 'hris') {
+                        <span class="text-[10px] font-semibold tracking-wide text-faint" title="Terisi otomatis dari data HRIS">HRIS</span>
+                      } @else if (!isDirty(u) && u.source === 'aplikasi') {
+                        <span class="text-[10px] font-semibold tracking-wide text-forest" title="Diatur lewat aplikasi">APLIKASI</span>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    } @empty {
+      <div class="rounded-xl border border-dashed border-hairline bg-surface/50 px-6 py-14 text-center">
+        <p class="font-display text-base text-muted">Tidak ada pegawai yang cocok.</p>
+        <p class="mt-1 text-xs text-faint">Ubah filter departemen atau kata kunci pencarian.</p>
+      </div>
+    }
+
+    <p class="text-xs text-faint">
+      Kosongkan email lalu simpan untuk kembali memakai email HRIS (jika ada). Perubahan disimpan
+      dengan tombol Simpan atau <kbd class="rounded border border-hairline bg-paper px-1">Ctrl</kbd>+<kbd class="rounded border border-hairline bg-paper px-1">S</kbd>.
+    </p>
+  }
+
+  <app-save-bar [count]="dirtyCount()" [saving]="saving()" (save)="save()" (cancel)="revert()" />
+</div>

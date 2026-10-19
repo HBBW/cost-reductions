@@ -23,5 +23,23 @@ export const config = {
       encrypt: (process.env.MSSQL_ENCRYPT || 'false') === 'true',
       trustServerCertificate: true
     }
+  },
+  /** Nama kolom email pada tabel hris_Employee (untuk pengingat admin). */
+  hrisEmailColumn: (process.env.HRIS_EMAIL_COLUMN || 'Email').replace(/[^A-Za-z0-9_]/g, '') || 'Email',
+  smtp: {
+    host: process.env.SMTP_HOST || '',
+    port: Number(process.env.SMTP_PORT || 587),
+    secure: (process.env.SMTP_SECURE || 'false') === 'true',
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || '',
+    from: process.env.SMTP_FROM || process.env.SMTP_USER || 'CR Monitor <no-reply@bmc.co.id>'
+  },
+  reminder: {
+    /** Daftar email tambahan (fallback) selain email admin dari HRIS. */
+    to: (process.env.REMINDER_TO || '').split(',').map((s) => s.trim()).filter(Boolean),
+    appUrl: process.env.REMINDER_APP_URL || 'https://costreduction.bmc.co.id',
+    /** Default: pukul 08:00 tanggal 12 setiap bulan (zona Asia/Jakarta). */
+    cron: process.env.REMINDER_CRON || '0 8 12 * *',
+    timezone: process.env.TZ || 'Asia/Jakarta'
   }
 };

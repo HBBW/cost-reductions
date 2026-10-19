@@ -12,6 +12,17 @@ export interface Department {
   name: string;
 }
 
+export interface EmailUser {
+  id: number;
+  username: string;
+  name: string;
+  role: string;
+  departmentId: string | null;
+  departmentName: string | null;
+  email: string;
+  source: 'aplikasi' | 'hris' | null;
+}
+
 export interface MetaInfo {
   currentYear: number;
   years: number[];
